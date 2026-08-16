@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Flame } from "lucide-react";
+import { ChevronRight, Flame } from "lucide-react";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -104,20 +104,28 @@ export default async function DashboardPage({
                       <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <Link
                           href={`/dashboard/goals/${goal.id}`}
-                          className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                          className="group flex min-w-0 flex-1 items-center gap-3 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                         >
-                          <div className="flex min-w-0 items-center gap-2">
-                            <p className="truncate font-medium hover:underline">{goal.title}</p>
-                            <Badge variant="secondary" className="shrink-0">
-                              {TYPE_LABEL[goal.type]}
-                            </Badge>
+                          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <p className="truncate font-medium group-hover:underline">
+                                {goal.title}
+                              </p>
+                              <Badge variant="secondary" className="shrink-0">
+                                {TYPE_LABEL[goal.type]}
+                              </Badge>
+                            </div>
+                            {goal.currentStreak > 0 && (
+                              <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                                <Flame className="size-3.5 text-primary" />
+                                {goal.currentStreak} day streak
+                              </p>
+                            )}
                           </div>
-                          {goal.currentStreak > 0 && (
-                            <p className="flex items-center gap-1 text-sm text-muted-foreground">
-                              <Flame className="size-3.5 text-primary" />
-                              {goal.currentStreak} day streak
-                            </p>
-                          )}
+                          <ChevronRight
+                            aria-hidden
+                            className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                          />
                         </Link>
                         <Separator orientation="vertical" className="hidden h-10 sm:block" />
                         <div className="flex items-center gap-1">

@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: goaltracker-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: goaltracker
+      POSTGRES_PASSWORD: goaltracker
+      POSTGRES_DB: goaltracker
+    ports:
+      - "5432:5432"
+    volumes:
+      - goaltracker-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  goaltracker-postgres-data:

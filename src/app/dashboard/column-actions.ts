@@ -1,0 +1,62 @@
+"use server";
+
+import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
+
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { ensureDefaultColumn, uniqueIdentifier } from "@/lib/columns";
+
+async function requireUserId() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) throw new Error("Not authenticated");
+  return session.user.id;
+}
+
+export async function createColumn(formData: FormData) {
+  const userId = await requireUserId();
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("Name is required");
+
+  const identifier = await uniqueIdentifier(userId, name);
+
+  const last = await prisma.column.findFirst({
+    where: { userId },
+    orderBy: { order: "desc" },
+    select: { order: true },
+  });
+
+  const column = await prisma.column.create({
+    data: {
+      userId,
+      name,
+      identifier,
+      order: (last?.order ?? -1) + 1,
+    },
+  });
+
+  revalidatePath("/dashboard");
+
+  return { id: column.id };
+}
+
+export async function deleteColumn(columnId: string) {
+  const userId = await requireUserId();
+
+  const column = await prisma.column.findUnique({ where: { id: columnId } });
+  if (!column || column.userId !== userId) throw new Error("Column not found");
+  if (column.isDefault) throw new Error("The Default column can't be deleted");
+
+  const defaultColumn = await ensureDefaultColumn(userId);
+
+  await prisma.$transaction([
+    prisma.goal.updateMany({
+      where: { columnId: column.id },
+      data: { columnId: defaultColumn.id },
+    }),
+    prisma.column.delete({ where: { id: column.id } }),
+  ]);
+
+  revalidatePath("/dashboard");
+}

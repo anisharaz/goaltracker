@@ -24,11 +24,18 @@ export async function createGoal(formData: FormData) {
   if (!title) throw new Error("Title is required");
   if (!Object.values(GoalType).includes(type)) throw new Error("Invalid goal type");
 
+  const columnId = String(formData.get("columnId") ?? "") || null;
+  if (columnId) {
+    const column = await prisma.column.findUnique({ where: { id: columnId } });
+    if (!column || column.userId !== userId) throw new Error("Column not found");
+  }
+
   const activeWeekdays = ALL_WEEKDAYS.filter((day) => formData.get(`weekday-${day}`) != null);
 
   const goal = await prisma.goal.create({
     data: {
       userId,
+      columnId,
       title,
       type,
       recurrenceType: type === "MILESTONE" ? RecurrenceType.NONE : RecurrenceType.RECURRING,
@@ -44,6 +51,21 @@ export async function createGoal(formData: FormData) {
   revalidatePath("/dashboard");
 
   return { id: goal.id };
+}
+
+export async function moveGoalToColumn(goalId: string, columnId: string) {
+  const userId = await requireUserId();
+
+  const [goal, column] = await Promise.all([
+    prisma.goal.findUnique({ where: { id: goalId } }),
+    prisma.column.findUnique({ where: { id: columnId } }),
+  ]);
+  if (!goal || goal.userId !== userId) throw new Error("Goal not found");
+  if (!column || column.userId !== userId) throw new Error("Column not found");
+
+  await prisma.goal.update({ where: { id: goalId }, data: { columnId } });
+
+  revalidatePath("/dashboard");
 }
 
 export async function deleteGoal(goalId: string) {

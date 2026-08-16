@@ -23,6 +23,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   goals         Goal[]
+  columns       Column[]
 
   @@unique([email])
   @@map("user")
@@ -88,10 +89,31 @@ enum RecurrenceType {
   NONE // milestone goals — no reset cycle
 }
 
+model Column {
+  id         String  @id @default(cuid())
+  userId     String
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  identifier String
+  isDefault  Boolean @default(false)
+  order      Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  goals Goal[]
+
+  @@unique([userId, identifier])
+  @@index([userId])
+}
+
 model Goal {
   id     String @id @default(cuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  columnId String?
+  column   Column? @relation(fields: [columnId], references: [id], onDelete: SetNull)
 
   title          String
   description    String?
@@ -124,6 +146,7 @@ model Goal {
   tasks    GoalTask[]
 
   @@index([userId])
+  @@index([columnId])
 }
 
 model CheckIn {

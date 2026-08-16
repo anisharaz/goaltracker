@@ -1,30 +1,19 @@
 import { Suspense } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { ChevronRight, Flame } from "lucide-react";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { toDateOnly } from "@/lib/dates";
+import { ensureDefaultColumn } from "@/lib/columns";
 import { SignOutButton } from "@/components/sign-out-button";
 import { CreateGoalForm } from "@/components/create-goal-form";
-import { CheckInDialog } from "@/components/check-in-dialog";
-import { DeleteGoalButton } from "@/components/delete-goal-button";
+import { GoalBoard, type BoardGoal } from "@/components/goal-board";
 import { GoalSearch } from "@/components/goal-search";
 import { ClearHighlightParam } from "@/components/clear-highlight-param";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BackgroundDecoration } from "@/components/background-decoration";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
-
-const TYPE_LABEL: Record<string, string> = {
-  HABIT: "Habit",
-  NUMERIC: "Numeric",
-  MILESTONE: "Milestone",
-};
 
 export default async function DashboardPage({
   searchParams,
@@ -38,13 +27,21 @@ export default async function DashboardPage({
     redirect("/sign-in");
   }
 
-  const goals = await prisma.goal.findMany({
-    where: {
-      userId: session.user.id,
-      ...(q ? { title: { contains: q, mode: "insensitive" } } : {}),
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const defaultColumn = await ensureDefaultColumn(session.user.id);
+
+  const [columns, goals] = await Promise.all([
+    prisma.column.findMany({
+      where: { userId: session.user.id },
+      orderBy: { order: "asc" },
+    }),
+    prisma.goal.findMany({
+      where: {
+        userId: session.user.id,
+        ...(q ? { title: { contains: q, mode: "insensitive" } } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
 
   const today = toDateOnly(new Date());
   const todaysCheckIns = await prisma.checkIn.findMany({
@@ -52,11 +49,31 @@ export default async function DashboardPage({
   });
   const checkInByGoalId = new Map(todaysCheckIns.map((c) => [c.goalId, c]));
 
+  const boardGoals: BoardGoal[] = goals.map((goal) => {
+    const todaysCheckIn = checkInByGoalId.get(goal.id) ?? null;
+    return {
+      id: goal.id,
+      title: goal.title,
+      type: goal.type,
+      targetUnit: goal.targetUnit,
+      currentStreak: goal.currentStreak,
+      columnId: goal.columnId ?? defaultColumn.id,
+      todaysCheckIn: todaysCheckIn
+        ? {
+            completed: todaysCheckIn.completed,
+            note: todaysCheckIn.note,
+            rating: todaysCheckIn.rating,
+            value: todaysCheckIn.value,
+          }
+        : null,
+    };
+  });
+
   return (
     <div className="relative flex flex-1 flex-col items-center overflow-hidden bg-muted/40">
       <BackgroundDecoration />
       {highlight && <ClearHighlightParam />}
-      <div className="flex w-full max-w-4xl flex-1 flex-col gap-10 px-4 py-12 sm:gap-12 sm:px-8 sm:py-20">
+      <div className="flex w-full max-w-6xl flex-1 flex-col gap-10 px-4 py-12 sm:gap-12 sm:px-8 sm:py-20">
         <header className="animate-in fade-in-0 slide-in-from-top-2 flex flex-wrap items-center justify-between gap-4 duration-500">
           <div className="flex flex-col gap-1.5">
             <h1>Welcome, {session.user.name}</h1>
@@ -77,80 +94,23 @@ export default async function DashboardPage({
               <Suspense>
                 <GoalSearch />
               </Suspense>
-              <CreateGoalForm />
+              <CreateGoalForm
+                columns={columns.map((c) => ({ id: c.id, name: c.name }))}
+                defaultColumnId={defaultColumn.id}
+              />
             </div>
           </div>
 
-          {goals.length === 0 ? (
-            <Card className="border-dashed">
-              <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                {q ? `No goals match "${q}".` : "No goals yet. Add one to get started."}
-              </CardContent>
-            </Card>
+          {goals.length === 0 && q ? (
+            <p className="rounded-xl border border-dashed border-border px-6 py-12 text-center text-sm text-muted-foreground">
+              No goals match &quot;{q}&quot;.
+            </p>
           ) : (
-            <ul className="flex flex-col gap-4">
-              {goals.map((goal, index) => {
-                const todaysCheckIn = checkInByGoalId.get(goal.id) ?? null;
-                return (
-                  <li
-                    key={goal.id}
-                    className="animate-in fade-in-0 slide-in-from-bottom-2 fill-mode-both duration-300"
-                    style={{ animationDelay: `${Math.min(index * 60, 300)}ms` }}
-                  >
-                    <Card
-                      className={cn(
-                        "transition-shadow hover:shadow-md",
-                        todaysCheckIn?.completed && "ring-1 ring-primary/25 bg-primary/[0.03]",
-                        goal.id === highlight && "animate-highlight-glow",
-                      )}
-                    >
-                      <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <Link
-                          href={`/dashboard/goals/${goal.id}`}
-                          className="group flex min-w-0 flex-1 items-center gap-3 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                        >
-                          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                            <div className="flex min-w-0 items-center gap-2">
-                              <p className="truncate font-medium group-hover:underline">
-                                {goal.title}
-                              </p>
-                              <Badge variant="secondary" className="shrink-0">
-                                {TYPE_LABEL[goal.type]}
-                              </Badge>
-                            </div>
-                            {goal.currentStreak > 0 && (
-                              <p className="flex items-center gap-1 text-sm text-muted-foreground">
-                                <Flame className="size-3.5 text-primary" />
-                                {goal.currentStreak} day streak
-                              </p>
-                            )}
-                          </div>
-                          <ChevronRight
-                            aria-hidden
-                            className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                          />
-                        </Link>
-                        <Separator orientation="vertical" className="hidden h-10 sm:block" />
-                        <div className="flex items-center gap-1">
-                          {goal.type !== "MILESTONE" && (
-                            <CheckInDialog
-                              goalId={goal.id}
-                              goalType={goal.type}
-                              targetUnit={goal.targetUnit}
-                              alreadyCompletedToday={todaysCheckIn?.completed ?? false}
-                              initialNote={todaysCheckIn?.note ?? null}
-                              initialRating={todaysCheckIn?.rating ?? null}
-                              initialValue={todaysCheckIn?.value ?? null}
-                            />
-                          )}
-                          <DeleteGoalButton goalId={goal.id} goalTitle={goal.title} />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </li>
-                );
-              })}
-            </ul>
+            <GoalBoard
+              columns={columns.map((c) => ({ id: c.id, name: c.name, isDefault: c.isDefault }))}
+              goals={boardGoals}
+              highlightGoalId={highlight}
+            />
           )}
         </section>
       </div>

@@ -72,7 +72,7 @@ export function CheckInDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant={alreadyCompletedToday ? "outline" : "default"}>
+        <Button variant={alreadyCompletedToday ? "outline" : "default"} size="sm">
           {alreadyCompletedToday ? "Edit today's check-in" : "Mark done"}
         </Button>
       </DialogTrigger>

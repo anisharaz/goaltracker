@@ -40,9 +40,16 @@ const WEEKDAYS = [
 
 type GoalType = "HABIT" | "NUMERIC" | "MILESTONE";
 
-export function CreateGoalForm() {
+export function CreateGoalForm({
+  columns,
+  defaultColumnId,
+}: {
+  columns: { id: string; name: string }[];
+  defaultColumnId: string;
+}) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<GoalType>("HABIT");
+  const [columnId, setColumnId] = useState(defaultColumnId);
   const [isSubmitting, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
@@ -62,6 +69,7 @@ export function CreateGoalForm() {
         router.push(url.pathname + url.search, { scroll: false });
         formRef.current?.reset();
         setType("HABIT");
+        setColumnId(defaultColumnId);
         setOpen(false);
       });
     });
@@ -87,6 +95,22 @@ export function CreateGoalForm() {
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="title">Title</Label>
             <Input id="title" name="title" required placeholder="e.g. Daily exercise" />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="columnId">Column</Label>
+            <Select name="columnId" value={columnId} onValueChange={setColumnId}>
+              <SelectTrigger id="columnId" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {columns.map((column) => (
+                  <SelectItem key={column.id} value={column.id}>
+                    {column.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex flex-col gap-1.5">

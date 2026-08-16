@@ -38,8 +38,17 @@ export function DeleteGoalButton({
     e.preventDefault();
     startTransition(async () => {
       await deleteGoal(goalId);
-      setOpen(false);
-      if (redirectTo) router.push(redirectTo);
+      // Keep the pending spinner up through the router refresh/navigation
+      // so the dialog doesn't close (or the redirect fire) before the
+      // updated list is actually ready.
+      startTransition(() => {
+        if (redirectTo) {
+          router.push(redirectTo);
+        } else {
+          router.refresh();
+          setOpen(false);
+        }
+      });
     });
   }
 

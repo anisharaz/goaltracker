@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 import { submitCheckIn } from "@/app/dashboard/actions";
 import { celebrateCheckIn } from "@/lib/confetti";
@@ -45,6 +46,7 @@ export function CheckInDialog({
   const [rating, setRating] = useState<number | null>(initialRating);
   const [value, setValue] = useState(initialValue?.toString() ?? "");
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -55,10 +57,15 @@ export function CheckInDialog({
         rating: rating ?? undefined,
         value: goalType === "NUMERIC" && value ? Number(value) : undefined,
       });
-      setOpen(false);
       if (result.streakIncreased) {
         celebrateCheckIn(result.currentStreak);
       }
+      // Keep the pending spinner up through the router refresh so the
+      // dialog doesn't close before the updated streak/status is visible.
+      startTransition(() => {
+        router.refresh();
+        setOpen(false);
+      });
     });
   }
 

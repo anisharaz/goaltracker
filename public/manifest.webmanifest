@@ -1,0 +1,14 @@
+{
+  "name": "Goal Tracker",
+  "short_name": "Goals",
+  "description": "Track habits, numeric goals, and milestones with streaks and effectiveness ratings.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fafaf9",
+  "theme_color": "#4f46e5",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

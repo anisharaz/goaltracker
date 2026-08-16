@@ -75,7 +75,7 @@ export function CheckInDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={onSubmit} className="flex flex-col gap-4">
+        <form onSubmit={onSubmit} className="flex flex-col gap-5">
           {goalType === "NUMERIC" && (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="value">Value {targetUnit ? `(${targetUnit})` : ""}</Label>

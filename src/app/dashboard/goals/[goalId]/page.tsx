@@ -58,8 +58,8 @@ export default async function GoalDetailPage({
   return (
     <div className="relative flex flex-1 flex-col items-center overflow-hidden bg-muted/40">
       <BackgroundDecoration />
-      <div className="flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-16">
-        <div className="animate-in fade-in-0 slide-in-from-top-2 flex flex-col gap-3 duration-500">
+      <div className="flex w-full max-w-4xl flex-1 flex-col gap-10 px-6 py-20 sm:px-8">
+        <div className="animate-in fade-in-0 slide-in-from-top-2 flex flex-col gap-4 duration-500">
           <div className="flex items-center justify-between">
             <Link
               href="/dashboard"
@@ -70,13 +70,15 @@ export default async function GoalDetailPage({
             </Link>
             <DeleteGoalButton goalId={goal.id} goalTitle={goal.title} redirectTo="/dashboard" />
           </div>
-          <div className="flex items-center gap-2">
-            <h1>{goal.title}</h1>
-            <Badge variant="secondary">{TYPE_LABEL[goal.type]}</Badge>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <h1>{goal.title}</h1>
+              <Badge variant="secondary">{TYPE_LABEL[goal.type]}</Badge>
+            </div>
+            {goal.description && (
+              <p className="text-muted-foreground">{goal.description}</p>
+            )}
           </div>
-          {goal.description && (
-            <p className="text-muted-foreground">{goal.description}</p>
-          )}
         </div>
 
         {goal.type === "MILESTONE" ? (
@@ -96,7 +98,7 @@ export default async function GoalDetailPage({
           </Card>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <StatCard icon={Flame} label="Current streak" value={`${goal.currentStreak}d`} delay={0} />
               <StatCard icon={Trophy} label="Longest streak" value={`${goal.longestStreak}d`} delay={60} />
               <StatCard icon={Percent} label="Last 30 days" value={`${completionRate}%`} delay={120} />
@@ -177,9 +179,9 @@ function RecentCheckIns({
       <CardHeader>
         <CardTitle>Recent check-ins</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+      <CardContent className="flex flex-col gap-4">
         {checkIns.map((c) => (
-          <div key={c.id} className="flex flex-col gap-1 border-b border-border pb-3 last:border-0 last:pb-0">
+          <div key={c.id} className="flex flex-col gap-1.5 border-b border-border pb-4 last:border-0 last:pb-0">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium">
                 {c.date.toLocaleDateString(undefined, {

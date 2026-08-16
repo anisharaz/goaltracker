@@ -69,7 +69,7 @@ export function CreateGoalForm() {
           <DialogDescription>What do you want to track?</DialogDescription>
         </DialogHeader>
 
-        <form ref={formRef} action={handleSubmit} className="flex flex-col gap-4">
+        <form ref={formRef} action={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="title">Title</Label>
             <Input id="title" name="title" required placeholder="e.g. Daily exercise" />

@@ -44,7 +44,7 @@ export function GoalCharts({
   const hasRatings = data.some((d) => d.rating != null);
 
   return (
-    <div className="flex flex-col gap-4 sm:grid sm:grid-cols-2">
+    <div className="flex flex-col gap-6 sm:grid sm:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle>Last 30 days</CardTitle>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Plus } from "lucide-react";
 
 import { createGoal } from "@/app/dashboard/actions";
@@ -42,19 +42,18 @@ type GoalType = "HABIT" | "NUMERIC" | "MILESTONE";
 export function CreateGoalForm() {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<GoalType>("HABIT");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
 
-  async function handleSubmit(formData: FormData) {
-    setIsSubmitting(true);
-    try {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    startTransition(async () => {
       await createGoal(formData);
       formRef.current?.reset();
       setType("HABIT");
       setOpen(false);
-    } finally {
-      setIsSubmitting(false);
-    }
+    });
   }
 
   return (
@@ -73,7 +72,7 @@ export function CreateGoalForm() {
 
         <Separator />
 
-        <form ref={formRef} action={handleSubmit} className="flex flex-col gap-5">
+        <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="title">Title</Label>
             <Input id="title" name="title" required placeholder="e.g. Daily exercise" />

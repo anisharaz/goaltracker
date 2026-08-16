@@ -13,8 +13,10 @@ import { CheckInDialog } from "@/components/check-in-dialog";
 import { DeleteGoalButton } from "@/components/delete-goal-button";
 import { GoalSearch } from "@/components/goal-search";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { BackgroundDecoration } from "@/components/background-decoration";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 const TYPE_LABEL: Record<string, string> = {
   HABIT: "Habit",
@@ -49,9 +51,10 @@ export default async function DashboardPage({
   const checkInByGoalId = new Map(todaysCheckIns.map((c) => [c.goalId, c]));
 
   return (
-    <div className="flex flex-1 flex-col items-center bg-muted/40">
+    <div className="relative flex flex-1 flex-col items-center overflow-hidden bg-muted/40">
+      <BackgroundDecoration />
       <div className="flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-16">
-        <header className="flex items-center justify-between">
+        <header className="animate-in fade-in-0 slide-in-from-top-2 flex items-center justify-between duration-500">
           <div>
             <h1>Welcome, {session.user.name}</h1>
             <p className="text-sm text-muted-foreground">{session.user.email}</p>
@@ -81,11 +84,20 @@ export default async function DashboardPage({
             </Card>
           ) : (
             <ul className="flex flex-col gap-3">
-              {goals.map((goal) => {
+              {goals.map((goal, index) => {
                 const todaysCheckIn = checkInByGoalId.get(goal.id) ?? null;
                 return (
-                  <li key={goal.id}>
-                    <Card>
+                  <li
+                    key={goal.id}
+                    className="animate-in fade-in-0 slide-in-from-bottom-2 fill-mode-both duration-300"
+                    style={{ animationDelay: `${Math.min(index * 60, 300)}ms` }}
+                  >
+                    <Card
+                      className={cn(
+                        "transition-shadow hover:shadow-md",
+                        todaysCheckIn?.completed && "ring-1 ring-primary/25 bg-primary/[0.03]",
+                      )}
+                    >
                       <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <Link
                           href={`/dashboard/goals/${goal.id}`}

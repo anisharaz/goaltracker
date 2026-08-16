@@ -96,9 +96,10 @@ export async function submitCheckIn(input: {
 
   // Only recompute the streak the first time today is completed; edits to
   // note/rating on an already-completed day shouldn't double-count it.
-  if (!existing?.completed) {
-    let currentStreak = 1;
+  const streakIncreased = !existing?.completed;
+  let currentStreak = goal.currentStreak;
 
+  if (streakIncreased) {
     if (goal.recurrenceType === RecurrenceType.RECURRING) {
       const prevActive = previousActiveDate(today, goal.activeWeekdays);
       const continuesStreak = goal.lastCompletedAt && isSameDate(goal.lastCompletedAt, prevActive);
@@ -118,4 +119,7 @@ export async function submitCheckIn(input: {
   }
 
   revalidatePath("/dashboard");
+  revalidatePath(`/dashboard/goals/${goal.id}`);
+
+  return { streakIncreased, currentStreak };
 }

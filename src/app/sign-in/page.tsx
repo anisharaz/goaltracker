@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { BackgroundDecoration } from "@/components/background-decoration";
 
 export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -25,11 +26,12 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="relative flex flex-1 flex-col items-center justify-center bg-muted/40 p-4">
+    <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-muted/40 p-4">
+      <BackgroundDecoration />
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-sm animate-in fade-in-0 zoom-in-95 duration-500">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Goal Tracker</CardTitle>
           <CardDescription>Sign in to track your goals.</CardDescription>

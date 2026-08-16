@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GoalCharts } from "@/components/goal-charts";
 import { DeleteGoalButton } from "@/components/delete-goal-button";
+import { BackgroundDecoration } from "@/components/background-decoration";
 
 const TYPE_LABEL: Record<string, string> = {
   HABIT: "Habit",
@@ -55,9 +56,10 @@ export default async function GoalDetailPage({
   });
 
   return (
-    <div className="flex flex-1 flex-col items-center bg-muted/40">
+    <div className="relative flex flex-1 flex-col items-center overflow-hidden bg-muted/40">
+      <BackgroundDecoration />
       <div className="flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-16">
-        <div className="flex flex-col gap-3">
+        <div className="animate-in fade-in-0 slide-in-from-top-2 flex flex-col gap-3 duration-500">
           <div className="flex items-center justify-between">
             <Link
               href="/dashboard"
@@ -95,23 +97,28 @@ export default async function GoalDetailPage({
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <StatCard icon={Flame} label="Current streak" value={`${goal.currentStreak}d`} />
-              <StatCard icon={Trophy} label="Longest streak" value={`${goal.longestStreak}d`} />
-              <StatCard icon={Percent} label="Last 30 days" value={`${completionRate}%`} />
+              <StatCard icon={Flame} label="Current streak" value={`${goal.currentStreak}d`} delay={0} />
+              <StatCard icon={Trophy} label="Longest streak" value={`${goal.longestStreak}d`} delay={60} />
+              <StatCard icon={Percent} label="Last 30 days" value={`${completionRate}%`} delay={120} />
               <StatCard
                 icon={Star}
                 label="Avg effectiveness"
                 value={avgRating !== null ? `${avgRating}/10` : "—"}
+                delay={180}
               />
             </div>
 
-            <GoalCharts data={chartData} goalType={goal.type} targetUnit={goal.targetUnit} />
+            <div className="animate-in fade-in-0 fill-mode-both duration-500" style={{ animationDelay: "150ms" }}>
+              <GoalCharts data={chartData} goalType={goal.type} targetUnit={goal.targetUnit} />
+            </div>
 
-            <RecentCheckIns
-              checkIns={[...checkIns].reverse().slice(0, 10)}
-              goalType={goal.type}
-              targetUnit={goal.targetUnit}
-            />
+            <div className="animate-in fade-in-0 fill-mode-both duration-500" style={{ animationDelay: "250ms" }}>
+              <RecentCheckIns
+                checkIns={[...checkIns].reverse().slice(0, 10)}
+                goalType={goal.type}
+                targetUnit={goal.targetUnit}
+              />
+            </div>
           </>
         )}
       </div>
@@ -123,13 +130,18 @@ function StatCard({
   icon: Icon,
   label,
   value,
+  delay = 0,
 }: {
   icon: LucideIcon;
   label: string;
   value: string;
+  delay?: number;
 }) {
   return (
-    <Card>
+    <Card
+      className="animate-in fade-in-0 slide-in-from-bottom-2 fill-mode-both duration-300 transition-shadow hover:shadow-md"
+      style={{ animationDelay: `${delay}ms` }}
+    >
       <CardContent className="flex flex-col gap-1">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Icon className="size-3.5" />

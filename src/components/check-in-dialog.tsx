@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { submitCheckIn } from "@/app/dashboard/actions";
+import { celebrateCheckIn } from "@/lib/confetti";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -46,13 +47,16 @@ export function CheckInDialog({
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      await submitCheckIn({
+      const result = await submitCheckIn({
         goalId,
         note: note || undefined,
         rating: rating ?? undefined,
         value: goalType === "NUMERIC" && value ? Number(value) : undefined,
       });
       setOpen(false);
+      if (result.streakIncreased) {
+        celebrateCheckIn(result.currentStreak);
+      }
     });
   }
 

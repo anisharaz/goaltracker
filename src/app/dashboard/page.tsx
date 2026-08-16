@@ -1,11 +1,33 @@
+import { Suspense } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { Flame } from "lucide-react";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { toDateOnly } from "@/lib/dates";
 import { SignOutButton } from "@/components/sign-out-button";
+import { CreateGoalForm } from "@/components/create-goal-form";
+import { CheckInDialog } from "@/components/check-in-dialog";
+import { DeleteGoalButton } from "@/components/delete-goal-button";
+import { GoalSearch } from "@/components/goal-search";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
-export default async function DashboardPage() {
+const TYPE_LABEL: Record<string, string> = {
+  HABIT: "Habit",
+  NUMERIC: "Numeric",
+  MILESTONE: "Milestone",
+};
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session) {
@@ -13,52 +35,96 @@ export default async function DashboardPage() {
   }
 
   const goals = await prisma.goal.findMany({
-    where: { userId: session.user.id },
+    where: {
+      userId: session.user.id,
+      ...(q ? { title: { contains: q, mode: "insensitive" } } : {}),
+    },
     orderBy: { createdAt: "desc" },
   });
 
+  const today = toDateOnly(new Date());
+  const todaysCheckIns = await prisma.checkIn.findMany({
+    where: { goalId: { in: goals.map((g) => g.id) }, date: today },
+  });
+  const checkInByGoalId = new Map(todaysCheckIns.map((c) => [c.goalId, c]));
+
   return (
-    <div className="flex flex-1 flex-col items-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-16">
-        <div className="flex items-center justify-between">
+    <div className="flex flex-1 flex-col items-center bg-muted/40">
+      <div className="flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-16">
+        <header className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
-              Welcome, {session.user.name}
-            </h1>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              {session.user.email}
-            </p>
+            <h1>Welcome, {session.user.name}</h1>
+            <p className="text-sm text-muted-foreground">{session.user.email}</p>
           </div>
-          <SignOutButton />
-        </div>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <SignOutButton />
+          </div>
+        </header>
 
         <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-medium text-black dark:text-zinc-50">
-            Your goals
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2>Your goals</h2>
+            <div className="flex items-center gap-2">
+              <Suspense>
+                <GoalSearch />
+              </Suspense>
+              <CreateGoalForm />
+            </div>
+          </div>
+
           {goals.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-black/[.08] px-6 py-10 text-center text-sm text-zinc-600 dark:border-white/[.145] dark:text-zinc-400">
-              No goals yet. Goal creation is coming next.
-            </p>
+            <Card className="border-dashed">
+              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                {q ? `No goals match "${q}".` : "No goals yet. Add one to get started."}
+              </CardContent>
+            </Card>
           ) : (
             <ul className="flex flex-col gap-3">
-              {goals.map((goal) => (
-                <li
-                  key={goal.id}
-                  className="rounded-xl border border-black/[.08] px-5 py-4 dark:border-white/[.145]"
-                >
-                  <p className="font-medium text-black dark:text-zinc-50">
-                    {goal.title}
-                  </p>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                    {goal.type}
-                  </p>
-                </li>
-              ))}
+              {goals.map((goal) => {
+                const todaysCheckIn = checkInByGoalId.get(goal.id) ?? null;
+                return (
+                  <li key={goal.id}>
+                    <Card>
+                      <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <Link
+                          href={`/dashboard/goals/${goal.id}`}
+                          className="flex flex-1 flex-col gap-1.5 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                        >
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium hover:underline">{goal.title}</p>
+                            <Badge variant="secondary">{TYPE_LABEL[goal.type]}</Badge>
+                          </div>
+                          {goal.currentStreak > 0 && (
+                            <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <Flame className="size-3.5 text-primary" />
+                              {goal.currentStreak} day streak
+                            </p>
+                          )}
+                        </Link>
+                        <div className="flex items-center gap-1">
+                          {goal.type !== "MILESTONE" && (
+                            <CheckInDialog
+                              goalId={goal.id}
+                              goalType={goal.type}
+                              targetUnit={goal.targetUnit}
+                              alreadyCompletedToday={todaysCheckIn?.completed ?? false}
+                              initialNote={todaysCheckIn?.note ?? null}
+                              initialRating={todaysCheckIn?.rating ?? null}
+                              initialValue={todaysCheckIn?.value ?? null}
+                            />
+                          )}
+                          <DeleteGoalButton goalId={goal.id} goalTitle={goal.title} />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
-      </main>
+      </div>
     </div>
   );
 }

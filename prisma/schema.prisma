@@ -135,6 +135,7 @@ model CheckIn {
   completed Boolean  @default(false) // HABIT goals
   value     Float? // NUMERIC goals — amount logged for this date
   note      String?
+  rating    Int? // self-rated effectiveness, 1-10 (validated in app layer)
 
   createdAt DateTime @default(now())
 

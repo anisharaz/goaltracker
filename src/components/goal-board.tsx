@@ -25,6 +25,7 @@ import { CreateColumnForm } from "@/components/create-column-form";
 import { DeleteColumnButton } from "@/components/delete-column-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 const TYPE_LABEL: Record<string, string> = {
@@ -111,19 +112,22 @@ export function GoalBoard({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 sm:mx-0 sm:snap-none sm:px-0">
-        {columns.map((column) => (
-          <BoardColumnView
-            key={column.id}
-            column={column}
-            goals={items.filter((g) => g.columnId === column.id)}
-            highlightGoalId={highlightGoalId}
-          />
-        ))}
-        <div className="w-72 shrink-0 pt-1 sm:w-80">
-          <CreateColumnForm />
+      <ScrollArea className="w-full" type="always">
+        <div className="flex snap-x snap-mandatory gap-4 pb-4 sm:snap-none">
+          {columns.map((column) => (
+            <BoardColumnView
+              key={column.id}
+              column={column}
+              goals={items.filter((g) => g.columnId === column.id)}
+              highlightGoalId={highlightGoalId}
+            />
+          ))}
+          <div className="w-72 shrink-0 pt-1 sm:w-80">
+            <CreateColumnForm />
+          </div>
         </div>
-      </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
 
       <DragOverlay>{activeGoal ? <GoalCardContent goal={activeGoal} dragging /> : null}</DragOverlay>
     </DndContext>
@@ -145,7 +149,7 @@ function BoardColumnView({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex w-72 shrink-0 snap-start flex-col gap-3 rounded-xl border border-border bg-muted/30 p-3 transition-colors sm:w-80",
+        "flex min-h-[28rem] w-72 shrink-0 snap-start flex-col gap-3 rounded-xl border border-border bg-muted/30 p-3 transition-colors sm:w-80",
         isOver && "border-primary/50 bg-primary/5",
       )}
     >

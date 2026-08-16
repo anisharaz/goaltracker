@@ -12,6 +12,7 @@ import { CreateGoalForm } from "@/components/create-goal-form";
 import { CheckInDialog } from "@/components/check-in-dialog";
 import { DeleteGoalButton } from "@/components/delete-goal-button";
 import { GoalSearch } from "@/components/goal-search";
+import { ClearHighlightParam } from "@/components/clear-highlight-param";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BackgroundDecoration } from "@/components/background-decoration";
 import { Badge } from "@/components/ui/badge";
@@ -28,9 +29,9 @@ const TYPE_LABEL: Record<string, string> = {
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; highlight?: string }>;
 }) {
-  const { q } = await searchParams;
+  const { q, highlight } = await searchParams;
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session) {
@@ -54,6 +55,7 @@ export default async function DashboardPage({
   return (
     <div className="relative flex flex-1 flex-col items-center overflow-hidden bg-muted/40">
       <BackgroundDecoration />
+      {highlight && <ClearHighlightParam />}
       <div className="flex w-full max-w-4xl flex-1 flex-col gap-10 px-4 py-12 sm:gap-12 sm:px-8 sm:py-20">
         <header className="animate-in fade-in-0 slide-in-from-top-2 flex flex-wrap items-center justify-between gap-4 duration-500">
           <div className="flex flex-col gap-1.5">
@@ -99,6 +101,7 @@ export default async function DashboardPage({
                       className={cn(
                         "transition-shadow hover:shadow-md",
                         todaysCheckIn?.completed && "ring-1 ring-primary/25 bg-primary/[0.03]",
+                        goal.id === highlight && "animate-highlight-glow",
                       )}
                     >
                       <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

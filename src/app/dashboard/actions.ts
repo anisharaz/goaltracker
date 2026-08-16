@@ -26,7 +26,7 @@ export async function createGoal(formData: FormData) {
 
   const activeWeekdays = ALL_WEEKDAYS.filter((day) => formData.get(`weekday-${day}`) != null);
 
-  await prisma.goal.create({
+  const goal = await prisma.goal.create({
     data: {
       userId,
       title,
@@ -42,6 +42,8 @@ export async function createGoal(formData: FormData) {
   });
 
   revalidatePath("/dashboard");
+
+  return { id: goal.id };
 }
 
 export async function deleteGoal(goalId: string) {

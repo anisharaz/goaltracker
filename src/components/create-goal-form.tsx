@@ -51,12 +51,15 @@ export function CreateGoalForm() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     startTransition(async () => {
-      await createGoal(formData);
-      // Keep the pending spinner (and the dialog open) through the router
-      // refresh too, so the dialog doesn't close before the new goal is
-      // actually visible in the list behind it.
+      const goal = await createGoal(formData);
+      // Keep the pending spinner (and the dialog open) through the
+      // navigation too, so the dialog doesn't close before the new goal is
+      // actually visible in the list behind it. The `highlight` param lets
+      // the list flag exactly which row just got added.
       startTransition(() => {
-        router.refresh();
+        const url = new URL(window.location.href);
+        url.searchParams.set("highlight", goal.id);
+        router.push(url.pathname + url.search, { scroll: false });
         formRef.current?.reset();
         setType("HABIT");
         setOpen(false);

@@ -164,3 +164,19 @@
     animation: blob-pulse 10s ease-in-out infinite;
   }
 }
+
+@keyframes highlight-glow {
+  0%,
+  40% {
+    box-shadow: 0 0 0 2px var(--primary);
+    background-color: color-mix(in oklch, var(--primary) 10%, var(--card));
+  }
+  100% {
+    box-shadow: 0 0 0 0px transparent;
+    background-color: var(--card);
+  }
+}
+
+.animate-highlight-glow {
+  animation: highlight-glow 1.8s ease-out forwards;
+}

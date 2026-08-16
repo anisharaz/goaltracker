@@ -32,7 +32,7 @@ export default function SignInPage() {
         <ThemeToggle />
       </div>
       <Card className="w-full max-w-sm animate-in fade-in-0 zoom-in-95 duration-500">
-        <CardHeader className="text-center">
+        <CardHeader className="border-b text-center">
           <CardTitle className="text-2xl">Goal Tracker</CardTitle>
           <CardDescription>Sign in to track your goals.</CardDescription>
         </CardHeader>

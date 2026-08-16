@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 const RATINGS = Array.from({ length: 10 }, (_, i) => i + 1);
@@ -74,6 +75,8 @@ export function CheckInDialog({
             Log an optional note and rate how effectively you did it.
           </DialogDescription>
         </DialogHeader>
+
+        <Separator />
 
         <form onSubmit={onSubmit} className="flex flex-col gap-5">
           {goalType === "NUMERIC" && (

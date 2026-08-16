@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { GoalCharts } from "@/components/goal-charts";
 import { DeleteGoalButton } from "@/components/delete-goal-button";
 import { BackgroundDecoration } from "@/components/background-decoration";
+import { Separator } from "@/components/ui/separator";
 
 const TYPE_LABEL: Record<string, string> = {
   HABIT: "Habit",
@@ -80,6 +81,8 @@ export default async function GoalDetailPage({
             )}
           </div>
         </div>
+
+        <Separator />
 
         {goal.type === "MILESTONE" ? (
           <Card>
@@ -176,7 +179,7 @@ function RecentCheckIns({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="border-b">
         <CardTitle>Recent check-ins</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

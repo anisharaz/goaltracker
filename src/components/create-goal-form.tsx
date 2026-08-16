@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 
 const WEEKDAYS = [
   { value: 0, label: "Sun" },
@@ -68,6 +69,8 @@ export function CreateGoalForm() {
           <DialogTitle>New goal</DialogTitle>
           <DialogDescription>What do you want to track?</DialogDescription>
         </DialogHeader>
+
+        <Separator />
 
         <form ref={formRef} action={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">

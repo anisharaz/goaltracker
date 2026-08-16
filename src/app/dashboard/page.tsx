@@ -16,6 +16,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { BackgroundDecoration } from "@/components/background-decoration";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 const TYPE_LABEL: Record<string, string> = {
@@ -64,6 +65,8 @@ export default async function DashboardPage({
             <SignOutButton />
           </div>
         </header>
+
+        <Separator />
 
         <section className="flex flex-col gap-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -114,6 +117,7 @@ export default async function DashboardPage({
                             </p>
                           )}
                         </Link>
+                        <Separator orientation="vertical" className="hidden h-10 sm:block" />
                         <div className="flex items-center gap-1">
                           {goal.type !== "MILESTONE" && (
                             <CheckInDialog

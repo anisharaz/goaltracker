@@ -46,7 +46,7 @@ export function GoalCharts({
   return (
     <div className="flex flex-col gap-6 sm:grid sm:grid-cols-2">
       <Card>
-        <CardHeader>
+        <CardHeader className="border-b">
           <CardTitle>Last 30 days</CardTitle>
           <CardDescription>
             {goalType === "NUMERIC" ? `Logged ${activityLabel.toLowerCase()} per day` : "Daily completion"}
@@ -78,7 +78,7 @@ export function GoalCharts({
 
       {hasRatings && (
         <Card>
-          <CardHeader>
+          <CardHeader className="border-b">
             <CardTitle>Effectiveness trend</CardTitle>
             <CardDescription>Self-rated 1-10 on days you checked in</CardDescription>
           </CardHeader>

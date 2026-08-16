@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
@@ -10,9 +11,11 @@ import { computeCompletionRate, averageRating } from "@/lib/goal-stats";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GoalCharts } from "@/components/goal-charts";
+import { GoalStatsSkeleton } from "@/components/goal-stats-skeleton";
 import { DeleteGoalButton } from "@/components/delete-goal-button";
 import { BackgroundDecoration } from "@/components/background-decoration";
 import { Separator } from "@/components/ui/separator";
+import type { GoalModel } from "@/generated/prisma/models";
 
 const TYPE_LABEL: Record<string, string> = {
   HABIT: "Habit",
@@ -31,30 +34,6 @@ export default async function GoalDetailPage({
 
   const goal = await prisma.goal.findUnique({ where: { id: goalId } });
   if (!goal || goal.userId !== session.user.id) notFound();
-
-  const checkIns = await prisma.checkIn.findMany({
-    where: { goalId: goal.id },
-    orderBy: { date: "asc" },
-  });
-
-  const completionRate = computeCompletionRate(goal, checkIns);
-  const avgRating = averageRating(checkIns);
-
-  const window = lastNDates(30);
-  const checkInByTime = new Map(checkIns.map((c) => [c.date.getTime(), c]));
-  const chartData = window.map((d) => {
-    const c = checkInByTime.get(d.getTime());
-    const completed = c?.completed
-      ? goal.type === "NUMERIC"
-        ? (c.value ?? 1)
-        : 1
-      : 0;
-    return {
-      date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      completed,
-      rating: c?.rating ?? null,
-    };
-  });
 
   return (
     <div className="relative flex flex-1 flex-col items-center overflow-hidden bg-muted/40">
@@ -102,34 +81,66 @@ export default async function GoalDetailPage({
             </CardHeader>
           </Card>
         ) : (
-          <>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <StatCard icon={Flame} label="Current streak" value={`${goal.currentStreak}d`} delay={0} />
-              <StatCard icon={Trophy} label="Longest streak" value={`${goal.longestStreak}d`} delay={60} />
-              <StatCard icon={Percent} label="Last 30 days" value={`${completionRate}%`} delay={120} />
-              <StatCard
-                icon={Star}
-                label="Avg effectiveness"
-                value={avgRating !== null ? `${avgRating}/10` : "—"}
-                delay={180}
-              />
-            </div>
-
-            <div className="animate-in fade-in-0 fill-mode-both duration-500" style={{ animationDelay: "150ms" }}>
-              <GoalCharts data={chartData} goalType={goal.type} targetUnit={goal.targetUnit} />
-            </div>
-
-            <div className="animate-in fade-in-0 fill-mode-both duration-500" style={{ animationDelay: "250ms" }}>
-              <RecentCheckIns
-                checkIns={[...checkIns].reverse().slice(0, 10)}
-                goalType={goal.type}
-                targetUnit={goal.targetUnit}
-              />
-            </div>
-          </>
+          <Suspense fallback={<GoalStatsSkeleton />}>
+            <GoalStatsSection goal={goal} />
+          </Suspense>
         )}
       </div>
     </div>
+  );
+}
+
+async function GoalStatsSection({ goal }: { goal: GoalModel }) {
+  const checkIns = await prisma.checkIn.findMany({
+    where: { goalId: goal.id },
+    orderBy: { date: "asc" },
+  });
+
+  const completionRate = computeCompletionRate(goal, checkIns);
+  const avgRating = averageRating(checkIns);
+
+  const window = lastNDates(30);
+  const checkInByTime = new Map(checkIns.map((c) => [c.date.getTime(), c]));
+  const chartData = window.map((d) => {
+    const c = checkInByTime.get(d.getTime());
+    const completed = c?.completed
+      ? goal.type === "NUMERIC"
+        ? (c.value ?? 1)
+        : 1
+      : 0;
+    return {
+      date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      completed,
+      rating: c?.rating ?? null,
+    };
+  });
+
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <StatCard icon={Flame} label="Current streak" value={`${goal.currentStreak}d`} delay={0} />
+        <StatCard icon={Trophy} label="Longest streak" value={`${goal.longestStreak}d`} delay={60} />
+        <StatCard icon={Percent} label="Last 30 days" value={`${completionRate}%`} delay={120} />
+        <StatCard
+          icon={Star}
+          label="Avg effectiveness"
+          value={avgRating !== null ? `${avgRating}/10` : "—"}
+          delay={180}
+        />
+      </div>
+
+      <div className="animate-in fade-in-0 fill-mode-both duration-500" style={{ animationDelay: "150ms" }}>
+        <GoalCharts data={chartData} goalType={goal.type} targetUnit={goal.targetUnit} />
+      </div>
+
+      <div className="animate-in fade-in-0 fill-mode-both duration-500" style={{ animationDelay: "250ms" }}>
+        <RecentCheckIns
+          checkIns={[...checkIns].reverse().slice(0, 10)}
+          goalType={goal.type}
+          targetUnit={goal.targetUnit}
+        />
+      </div>
+    </>
   );
 }
 

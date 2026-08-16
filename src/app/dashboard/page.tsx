@@ -9,6 +9,7 @@ import { ensureDefaultColumn } from "@/lib/columns";
 import { SignOutButton } from "@/components/sign-out-button";
 import { CreateGoalForm } from "@/components/create-goal-form";
 import { GoalBoard, type BoardGoal } from "@/components/goal-board";
+import { BoardSkeleton } from "@/components/board-skeleton";
 import { GoalSearch } from "@/components/goal-search";
 import { ClearHighlightParam } from "@/components/clear-highlight-param";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -27,46 +28,13 @@ export default async function DashboardPage({
     redirect("/sign-in");
   }
 
+  // Columns are a small, cheap query — fetch eagerly so the header, search
+  // box, and "Add goal" column picker render without waiting on the
+  // (potentially heavier) goals + check-ins query below.
   const defaultColumn = await ensureDefaultColumn(session.user.id);
-
-  const [columns, goals] = await Promise.all([
-    prisma.column.findMany({
-      where: { userId: session.user.id },
-      orderBy: { order: "asc" },
-    }),
-    prisma.goal.findMany({
-      where: {
-        userId: session.user.id,
-        ...(q ? { title: { contains: q, mode: "insensitive" } } : {}),
-      },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
-
-  const today = toDateOnly(new Date());
-  const todaysCheckIns = await prisma.checkIn.findMany({
-    where: { goalId: { in: goals.map((g) => g.id) }, date: today },
-  });
-  const checkInByGoalId = new Map(todaysCheckIns.map((c) => [c.goalId, c]));
-
-  const boardGoals: BoardGoal[] = goals.map((goal) => {
-    const todaysCheckIn = checkInByGoalId.get(goal.id) ?? null;
-    return {
-      id: goal.id,
-      title: goal.title,
-      type: goal.type,
-      targetUnit: goal.targetUnit,
-      currentStreak: goal.currentStreak,
-      columnId: goal.columnId ?? defaultColumn.id,
-      todaysCheckIn: todaysCheckIn
-        ? {
-            completed: todaysCheckIn.completed,
-            note: todaysCheckIn.note,
-            rating: todaysCheckIn.rating,
-            value: todaysCheckIn.value,
-          }
-        : null,
-    };
+  const columns = await prisma.column.findMany({
+    where: { userId: session.user.id },
+    orderBy: { order: "asc" },
   });
 
   return (
@@ -101,19 +69,69 @@ export default async function DashboardPage({
             </div>
           </div>
 
-          {goals.length === 0 && q ? (
-            <p className="rounded-xl border border-dashed border-border px-6 py-12 text-center text-sm text-muted-foreground">
-              No goals match &quot;{q}&quot;.
-            </p>
-          ) : (
-            <GoalBoard
-              columns={columns.map((c) => ({ id: c.id, name: c.name, isDefault: c.isDefault }))}
-              goals={boardGoals}
-              highlightGoalId={highlight}
-            />
-          )}
+          <Suspense fallback={<BoardSkeleton columns={columns} />}>
+            <GoalBoardData userId={session.user.id} defaultColumnId={defaultColumn.id} columns={columns} q={q} highlight={highlight} />
+          </Suspense>
         </section>
       </div>
     </div>
   );
+}
+
+async function GoalBoardData({
+  userId,
+  defaultColumnId,
+  columns,
+  q,
+  highlight,
+}: {
+  userId: string;
+  defaultColumnId: string;
+  columns: { id: string; name: string; isDefault: boolean }[];
+  q?: string;
+  highlight?: string;
+}) {
+  const goals = await prisma.goal.findMany({
+    where: {
+      userId,
+      ...(q ? { title: { contains: q, mode: "insensitive" } } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const today = toDateOnly(new Date());
+  const todaysCheckIns = await prisma.checkIn.findMany({
+    where: { goalId: { in: goals.map((g) => g.id) }, date: today },
+  });
+  const checkInByGoalId = new Map(todaysCheckIns.map((c) => [c.goalId, c]));
+
+  const boardGoals: BoardGoal[] = goals.map((goal) => {
+    const todaysCheckIn = checkInByGoalId.get(goal.id) ?? null;
+    return {
+      id: goal.id,
+      title: goal.title,
+      type: goal.type,
+      targetUnit: goal.targetUnit,
+      currentStreak: goal.currentStreak,
+      columnId: goal.columnId ?? defaultColumnId,
+      todaysCheckIn: todaysCheckIn
+        ? {
+            completed: todaysCheckIn.completed,
+            note: todaysCheckIn.note,
+            rating: todaysCheckIn.rating,
+            value: todaysCheckIn.value,
+          }
+        : null,
+    };
+  });
+
+  if (goals.length === 0 && q) {
+    return (
+      <p className="rounded-xl border border-dashed border-border px-6 py-12 text-center text-sm text-muted-foreground">
+        No goals match &quot;{q}&quot;.
+      </p>
+    );
+  }
+
+  return <GoalBoard columns={columns} goals={boardGoals} highlightGoalId={highlight} />;
 }

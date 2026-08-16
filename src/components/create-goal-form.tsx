@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 
 import { createGoal } from "@/app/dashboard/actions";
@@ -44,15 +45,22 @@ export function CreateGoalForm() {
   const [type, setType] = useState<GoalType>("HABIT");
   const [isSubmitting, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
+  const router = useRouter();
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     startTransition(async () => {
       await createGoal(formData);
-      formRef.current?.reset();
-      setType("HABIT");
-      setOpen(false);
+      // Keep the pending spinner (and the dialog open) through the router
+      // refresh too, so the dialog doesn't close before the new goal is
+      // actually visible in the list behind it.
+      startTransition(() => {
+        router.refresh();
+        formRef.current?.reset();
+        setType("HABIT");
+        setOpen(false);
+      });
     });
   }
 

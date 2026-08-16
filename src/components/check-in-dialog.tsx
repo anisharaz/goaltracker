@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 const RATINGS = Array.from({ length: 10 }, (_, i) => i + 1);
@@ -126,6 +127,7 @@ export function CheckInDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={isPending}>
+              {isPending && <Spinner />}
               {isPending ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>

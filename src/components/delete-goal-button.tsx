@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 
@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Spinner } from "@/components/ui/spinner";
 
 export function DeleteGoalButton({
   goalId,
@@ -27,18 +28,23 @@ export function DeleteGoalButton({
   goalTitle: string;
   redirectTo?: string;
 }) {
+  const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  function handleDelete() {
+  function handleDelete(e: React.MouseEvent<HTMLButtonElement>) {
+    // Prevent AlertDialogAction's default auto-close so the pending
+    // spinner is actually visible while the delete is in flight.
+    e.preventDefault();
     startTransition(async () => {
       await deleteGoal(goalId);
+      setOpen(false);
       if (redirectTo) router.push(redirectTo);
     });
   }
 
   return (
-    <AlertDialog>
+    <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
         <Button variant="ghost" size="icon" aria-label={`Delete ${goalTitle}`}>
           <Trash2 className="text-destructive" />
@@ -53,12 +59,13 @@ export function DeleteGoalButton({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             disabled={isPending}
             onClick={handleDelete}
             className="bg-destructive text-white hover:bg-destructive/90"
           >
+            {isPending && <Spinner />}
             {isPending ? "Deleting…" : "Delete"}
           </AlertDialogAction>
         </AlertDialogFooter>

@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
 
 const WEEKDAYS = [
   { value: 0, label: "Sun" },
@@ -131,6 +132,7 @@ export function CreateGoalForm() {
 
           <DialogFooter>
             <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting && <Spinner />}
               {isSubmitting ? "Adding…" : "Add goal"}
             </Button>
           </DialogFooter>

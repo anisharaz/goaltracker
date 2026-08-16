@@ -54,7 +54,7 @@ export default async function DashboardPage({
   return (
     <div className="relative flex flex-1 flex-col items-center overflow-hidden bg-muted/40">
       <BackgroundDecoration />
-      <div className="flex w-full max-w-4xl flex-1 flex-col gap-12 px-6 py-20 sm:px-8">
+      <div className="flex w-full max-w-4xl flex-1 flex-col gap-10 px-4 py-12 sm:gap-12 sm:px-8 sm:py-20">
         <header className="animate-in fade-in-0 slide-in-from-top-2 flex flex-wrap items-center justify-between gap-4 duration-500">
           <div className="flex flex-col gap-1.5">
             <h1>Welcome, {session.user.name}</h1>
@@ -71,7 +71,7 @@ export default async function DashboardPage({
         <section className="flex flex-col gap-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2>Your goals</h2>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Suspense>
                 <GoalSearch />
               </Suspense>
@@ -104,11 +104,13 @@ export default async function DashboardPage({
                       <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <Link
                           href={`/dashboard/goals/${goal.id}`}
-                          className="flex flex-1 flex-col gap-1.5 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                          className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                         >
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium hover:underline">{goal.title}</p>
-                            <Badge variant="secondary">{TYPE_LABEL[goal.type]}</Badge>
+                          <div className="flex min-w-0 items-center gap-2">
+                            <p className="truncate font-medium hover:underline">{goal.title}</p>
+                            <Badge variant="secondary" className="shrink-0">
+                              {TYPE_LABEL[goal.type]}
+                            </Badge>
                           </div>
                           {goal.currentStreak > 0 && (
                             <p className="flex items-center gap-1 text-sm text-muted-foreground">

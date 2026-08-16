@@ -59,7 +59,7 @@ export default async function GoalDetailPage({
   return (
     <div className="relative flex flex-1 flex-col items-center overflow-hidden bg-muted/40">
       <BackgroundDecoration />
-      <div className="flex w-full max-w-4xl flex-1 flex-col gap-10 px-6 py-20 sm:px-8">
+      <div className="flex w-full max-w-4xl flex-1 flex-col gap-10 px-4 py-12 sm:px-8 sm:py-20">
         <div className="animate-in fade-in-0 slide-in-from-top-2 flex flex-col gap-4 duration-500">
           <div className="flex items-center justify-between">
             <Link
@@ -72,9 +72,11 @@ export default async function GoalDetailPage({
             <DeleteGoalButton goalId={goal.id} goalTitle={goal.title} redirectTo="/dashboard" />
           </div>
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <h1>{goal.title}</h1>
-              <Badge variant="secondary">{TYPE_LABEL[goal.type]}</Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="min-w-0 break-words">{goal.title}</h1>
+              <Badge variant="secondary" className="shrink-0">
+                {TYPE_LABEL[goal.type]}
+              </Badge>
             </div>
             {goal.description && (
               <p className="text-muted-foreground">{goal.description}</p>
@@ -185,7 +187,7 @@ function RecentCheckIns({
       <CardContent className="flex flex-col gap-4">
         {checkIns.map((c) => (
           <div key={c.id} className="flex flex-col gap-1.5 border-b border-border pb-4 last:border-0 last:pb-0">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <p className="text-sm font-medium">
                 {c.date.toLocaleDateString(undefined, {
                   weekday: "short",
@@ -193,9 +195,9 @@ function RecentCheckIns({
                   day: "numeric",
                 })}
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 {goalType === "NUMERIC" && c.value != null && (
-                  <span className="text-sm text-muted-foreground">
+                  <span className="truncate text-sm text-muted-foreground">
                     {c.value} {targetUnit ?? ""}
                   </span>
                 )}

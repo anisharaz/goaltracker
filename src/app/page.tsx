@@ -44,7 +44,7 @@ export default async function Home() {
         <ThemeToggle />
       </div>
 
-      <div className="flex w-full max-w-4xl flex-1 flex-col items-center gap-16 px-6 py-24 text-center sm:px-8">
+      <div className="flex w-full max-w-4xl flex-1 flex-col items-center gap-12 px-4 py-16 text-center sm:gap-16 sm:px-8 sm:py-24">
         <div className="animate-in fade-in-0 slide-in-from-bottom-2 flex flex-col items-center gap-5 duration-500">
           <h1>Goal Tracker</h1>
           <p className="max-w-xl text-lg text-muted-foreground">

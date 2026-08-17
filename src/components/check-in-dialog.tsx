@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { submitCheckIn } from "@/app/dashboard/actions";
@@ -48,6 +48,21 @@ export function CheckInDialog({
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
+  // The dialog doesn't actually close (data-state -> closed) until this
+  // whole transition — including the router refresh — commits, which can
+  // trail well behind the moment setOpen(false) is *called*. Firing
+  // confetti right on that call showed it while the dialog was still on
+  // screen. Instead, queue the celebration and fire it once isPending
+  // flips back to false, i.e. once the dialog has actually closed.
+  const pendingStreakRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!isPending && pendingStreakRef.current !== null) {
+      celebrateCheckIn(pendingStreakRef.current);
+      pendingStreakRef.current = null;
+    }
+  }, [isPending]);
+
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
@@ -58,7 +73,7 @@ export function CheckInDialog({
         value: goalType === "NUMERIC" && value ? Number(value) : undefined,
       });
       if (result.streakIncreased) {
-        celebrateCheckIn(result.currentStreak);
+        pendingStreakRef.current = result.currentStreak;
       }
       // Keep the pending spinner up through the router refresh so the
       // dialog doesn't close before the updated streak/status is visible.

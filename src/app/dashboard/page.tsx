@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { toDateOnly } from "@/lib/dates";
-import { ensureDefaultColumn } from "@/lib/columns";
+import { ensureDefaultColumn, ensureMilestonesColumn } from "@/lib/columns";
 import { SignOutButton } from "@/components/sign-out-button";
 import { CreateGoalForm } from "@/components/create-goal-form";
 import { GoalBoard, type BoardGoal } from "@/components/goal-board";
@@ -32,9 +32,10 @@ export default async function DashboardPage({
   // box, and "Add goal" column picker render without waiting on the
   // (potentially heavier) goals + check-ins query below.
   const defaultColumn = await ensureDefaultColumn(session.user.id);
+  await ensureMilestonesColumn(session.user.id);
   const columns = await prisma.column.findMany({
     where: { userId: session.user.id },
-    orderBy: { order: "asc" },
+    orderBy: [{ isDefault: "desc" }, { isMilestone: "desc" }, { order: "asc" }],
   });
 
   return (
@@ -63,7 +64,7 @@ export default async function DashboardPage({
                 <GoalSearch />
               </Suspense>
               <CreateGoalForm
-                columns={columns.map((c) => ({ id: c.id, name: c.name }))}
+                columns={columns.filter((c) => !c.isMilestone).map((c) => ({ id: c.id, name: c.name }))}
                 defaultColumnId={defaultColumn.id}
               />
             </div>
@@ -87,7 +88,7 @@ async function GoalBoardData({
 }: {
   userId: string;
   defaultColumnId: string;
-  columns: { id: string; name: string; isDefault: boolean }[];
+  columns: { id: string; name: string; isDefault: boolean; isMilestone: boolean }[];
   q?: string;
   highlight?: string;
 }) {
@@ -114,6 +115,7 @@ async function GoalBoardData({
       targetUnit: goal.targetUnit,
       currentStreak: goal.currentStreak,
       columnId: goal.columnId ?? defaultColumnId,
+      completedAt: goal.completedAt,
       todaysCheckIn: todaysCheckIn
         ? {
             completed: todaysCheckIn.completed,

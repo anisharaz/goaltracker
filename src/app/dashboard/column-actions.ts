@@ -47,6 +47,7 @@ export async function deleteColumn(columnId: string) {
   const column = await prisma.column.findUnique({ where: { id: columnId } });
   if (!column || column.userId !== userId) throw new Error("Column not found");
   if (column.isDefault) throw new Error("The Default column can't be deleted");
+  if (column.isMilestone) throw new Error("The Milestones column can't be deleted");
 
   const defaultColumn = await ensureDefaultColumn(userId);
 

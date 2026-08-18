@@ -38,7 +38,7 @@ const WEEKDAYS = [
   { value: 6, label: "Sat" },
 ];
 
-type GoalType = "HABIT" | "NUMERIC" | "MILESTONE";
+type GoalType = "HABIT" | "NUMERIC";
 
 export function CreateGoalForm({
   columns,
@@ -122,7 +122,6 @@ export function CreateGoalForm({
               <SelectContent>
                 <SelectItem value="HABIT">Habit (done / not done)</SelectItem>
                 <SelectItem value="NUMERIC">Numeric (track a quantity)</SelectItem>
-                <SelectItem value="MILESTONE">Milestone (one-off, target date)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -140,29 +139,20 @@ export function CreateGoalForm({
             </div>
           )}
 
-          {type === "MILESTONE" && (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="targetDate">Target date</Label>
-              <Input id="targetDate" name="targetDate" type="date" />
+          <div className="flex flex-col gap-2">
+            <Label>Active days</Label>
+            <div className="flex flex-wrap gap-3">
+              {WEEKDAYS.map((day) => (
+                <label
+                  key={day.value}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground"
+                >
+                  <Checkbox name={`weekday-${day.value}`} defaultChecked value="on" />
+                  {day.label}
+                </label>
+              ))}
             </div>
-          )}
-
-          {type !== "MILESTONE" && (
-            <div className="flex flex-col gap-2">
-              <Label>Active days</Label>
-              <div className="flex flex-wrap gap-3">
-                {WEEKDAYS.map((day) => (
-                  <label
-                    key={day.value}
-                    className="flex items-center gap-1.5 text-sm text-muted-foreground"
-                  >
-                    <Checkbox name={`weekday-${day.value}`} defaultChecked value="on" />
-                    {day.label}
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
+          </div>
 
           <DialogFooter>
             <Button type="submit" disabled={isSubmitting}>

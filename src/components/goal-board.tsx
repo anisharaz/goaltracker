@@ -22,7 +22,9 @@ import { moveGoalToColumn } from "@/app/dashboard/actions";
 import { CheckInDialog } from "@/components/check-in-dialog";
 import { DeleteGoalButton } from "@/components/delete-goal-button";
 import { CreateColumnForm } from "@/components/create-column-form";
+import { CreateMilestoneForm } from "@/components/create-milestone-form";
 import { DeleteColumnButton } from "@/components/delete-column-button";
+import { MilestoneCompleteButton } from "@/components/milestone-complete-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -41,6 +43,7 @@ export type BoardGoal = {
   targetUnit: string | null;
   currentStreak: number;
   columnId: string | null;
+  completedAt: Date | null;
   todaysCheckIn: {
     completed: boolean;
     note: string | null;
@@ -53,6 +56,7 @@ export type BoardColumnData = {
   id: string;
   name: string;
   isDefault: boolean;
+  isMilestone: boolean;
 };
 
 export function GoalBoard({
@@ -95,6 +99,9 @@ export function GoalBoard({
     const newColumnId = String(over.id);
     const goal = items.find((g) => g.id === goalId);
     if (!goal || goal.columnId === newColumnId) return;
+
+    const targetColumn = columns.find((c) => c.id === newColumnId);
+    if (!targetColumn || targetColumn.isMilestone !== (goal.type === "MILESTONE")) return;
 
     const previousColumnId = goal.columnId;
     setItems((prev) => prev.map((g) => (g.id === goalId ? { ...g, columnId: newColumnId } : g)));
@@ -160,7 +167,11 @@ function BoardColumnView({
             {goals.length}
           </Badge>
         </div>
-        {!column.isDefault && <DeleteColumnButton columnId={column.id} columnName={column.name} />}
+        {column.isMilestone ? (
+          <CreateMilestoneForm />
+        ) : (
+          !column.isDefault && <DeleteColumnButton columnId={column.id} columnName={column.name} />
+        )}
       </div>
 
       <div className="flex min-h-20 flex-col gap-2">
@@ -206,6 +217,9 @@ function GoalCardContent({
         "gap-3 py-3 transition-shadow hover:shadow-md",
         dragging && "rotate-2 shadow-lg",
         goal.todaysCheckIn?.completed && "ring-1 ring-primary/25 bg-primary/[0.03]",
+        goal.type === "MILESTONE" &&
+          goal.completedAt &&
+          "ring-1 ring-[color:var(--chart-3)]/30 bg-[color:var(--chart-3)]/[0.05]",
         highlighted && "animate-highlight-glow",
       )}
     >
@@ -250,7 +264,7 @@ function GoalCardContent({
               initialValue={goal.todaysCheckIn?.value ?? null}
             />
           ) : (
-            <span />
+            <MilestoneCompleteButton goalId={goal.id} completed={goal.completedAt != null} />
           )}
           <DeleteGoalButton goalId={goal.id} goalTitle={goal.title} />
         </div>

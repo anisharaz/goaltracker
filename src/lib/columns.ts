@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { GoalType } from "@/generated/prisma/enums";
 
 export function slugify(name: string): string {
   const base = name
@@ -28,8 +29,9 @@ const DEFAULT_COLUMN_IDENTIFIER = "default";
 
 /**
  * Every user needs exactly one non-deletable Default column. Also
- * self-heals: any goal left with a null columnId (legacy data, or a
- * column deleted outside the normal flow) gets reassigned here.
+ * self-heals: any non-milestone goal left with a null columnId (legacy
+ * data, or a column deleted outside the normal flow) gets reassigned
+ * here. Milestones are handled separately by ensureMilestonesColumn.
  */
 export async function ensureDefaultColumn(userId: string) {
   let defaultColumn = await prisma.column.findFirst({ where: { userId, isDefault: true } });
@@ -47,9 +49,41 @@ export async function ensureDefaultColumn(userId: string) {
   }
 
   await prisma.goal.updateMany({
-    where: { userId, columnId: null },
+    where: { userId, columnId: null, type: { not: GoalType.MILESTONE } },
     data: { columnId: defaultColumn.id },
   });
 
   return defaultColumn;
+}
+
+const MILESTONES_COLUMN_NAME = "Milestones";
+const MILESTONES_COLUMN_IDENTIFIER = "milestones";
+
+/**
+ * Every user also gets one non-deletable Milestones column. Every
+ * MILESTONE-type goal always lives here — self-heals by reassigning
+ * any milestone goal not already in this column (legacy data, or one
+ * left behind by a column that was deleted outside the normal flow).
+ */
+export async function ensureMilestonesColumn(userId: string) {
+  let milestonesColumn = await prisma.column.findFirst({ where: { userId, isMilestone: true } });
+
+  if (!milestonesColumn) {
+    milestonesColumn = await prisma.column.create({
+      data: {
+        userId,
+        name: MILESTONES_COLUMN_NAME,
+        identifier: MILESTONES_COLUMN_IDENTIFIER,
+        isMilestone: true,
+        order: 1,
+      },
+    });
+  }
+
+  await prisma.goal.updateMany({
+    where: { userId, type: GoalType.MILESTONE, columnId: { not: milestonesColumn.id } },
+    data: { columnId: milestonesColumn.id },
+  });
+
+  return milestonesColumn;
 }

@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { GoalType, RecurrenceType } from "@/generated/prisma/enums";
 import { previousActiveDate, isSameDate, toDateOnly } from "@/lib/dates";
+import { ensureMilestonesColumn } from "@/lib/columns";
 
 const ALL_WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
 
@@ -24,10 +25,17 @@ export async function createGoal(formData: FormData) {
   if (!title) throw new Error("Title is required");
   if (!Object.values(GoalType).includes(type)) throw new Error("Invalid goal type");
 
-  const columnId = String(formData.get("columnId") ?? "") || null;
-  if (columnId) {
+  let columnId = String(formData.get("columnId") ?? "") || null;
+
+  if (type === GoalType.MILESTONE) {
+    // Milestones always live in the user's Milestones column — ignore
+    // whatever (if anything) the client sent.
+    const milestonesColumn = await ensureMilestonesColumn(userId);
+    columnId = milestonesColumn.id;
+  } else if (columnId) {
     const column = await prisma.column.findUnique({ where: { id: columnId } });
     if (!column || column.userId !== userId) throw new Error("Column not found");
+    if (column.isMilestone) throw new Error("Only milestones can go in the Milestones column");
   }
 
   const activeWeekdays = ALL_WEEKDAYS.filter((day) => formData.get(`weekday-${day}`) != null);
@@ -63,9 +71,35 @@ export async function moveGoalToColumn(goalId: string, columnId: string) {
   if (!goal || goal.userId !== userId) throw new Error("Goal not found");
   if (!column || column.userId !== userId) throw new Error("Column not found");
 
+  const goalIsMilestone = goal.type === GoalType.MILESTONE;
+  if (goalIsMilestone !== column.isMilestone) {
+    throw new Error(
+      goalIsMilestone
+        ? "Milestones can only live in the Milestones column"
+        : "Only milestones can go in the Milestones column",
+    );
+  }
+
   await prisma.goal.update({ where: { id: goalId }, data: { columnId } });
 
   revalidatePath("/dashboard");
+}
+
+export async function toggleMilestoneComplete(goalId: string) {
+  const userId = await requireUserId();
+
+  const goal = await prisma.goal.findUnique({ where: { id: goalId } });
+  if (!goal || goal.userId !== userId) throw new Error("Goal not found");
+  if (goal.type !== GoalType.MILESTONE) throw new Error("Only milestones can be marked complete");
+
+  const completedAt = goal.completedAt ? null : new Date();
+
+  await prisma.goal.update({ where: { id: goalId }, data: { completedAt } });
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/dashboard/goals/${goal.id}`);
+
+  return { completed: completedAt !== null };
 }
 
 export async function deleteGoal(goalId: string) {

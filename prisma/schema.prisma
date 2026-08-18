@@ -90,13 +90,14 @@ enum RecurrenceType {
 }
 
 model Column {
-  id         String  @id @default(cuid())
-  userId     String
-  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name       String
-  identifier String
-  isDefault  Boolean @default(false)
-  order      Int     @default(0)
+  id          String  @id @default(cuid())
+  userId      String
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  identifier  String
+  isDefault   Boolean @default(false)
+  isMilestone Boolean @default(false)
+  order       Int     @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -128,7 +129,8 @@ model Goal {
   targetUnit  String?
 
   // MILESTONE goals only
-  targetDate DateTime?
+  targetDate  DateTime?
+  completedAt DateTime?
 
   startDate  DateTime  @default(now())
   endDate    DateTime?

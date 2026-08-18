@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { GoalCharts } from "@/components/goal-charts";
 import { GoalStatsSkeleton } from "@/components/goal-stats-skeleton";
 import { DeleteGoalButton } from "@/components/delete-goal-button";
+import { MilestoneCompleteButton } from "@/components/milestone-complete-button";
 import { BackgroundDecoration } from "@/components/background-decoration";
 import { Separator } from "@/components/ui/separator";
 import type { GoalModel } from "@/generated/prisma/models";
@@ -79,6 +80,19 @@ export default async function GoalDetailPage({
                   : "No target date set"}
               </CardDescription>
             </CardHeader>
+            <CardContent className="flex flex-wrap items-center gap-3">
+              <MilestoneCompleteButton goalId={goal.id} completed={goal.completedAt != null} />
+              {goal.completedAt && (
+                <p className="text-sm text-muted-foreground">
+                  Completed{" "}
+                  {new Date(goal.completedAt).toLocaleDateString(undefined, {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </p>
+              )}
+            </CardContent>
           </Card>
         ) : (
           <Suspense fallback={<GoalStatsSkeleton />}>

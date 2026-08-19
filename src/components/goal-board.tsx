@@ -8,17 +8,25 @@ import {
   PointerSensor,
   TouchSensor,
   closestCenter,
-  useDraggable,
+  useDndContext,
   useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  horizontalListSortingStrategy,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Flame, GripVertical, Plus } from "lucide-react";
 
-import { moveGoalToColumn } from "@/app/dashboard/actions";
+import { reorderGoals } from "@/app/dashboard/actions";
+import { reorderColumns } from "@/app/dashboard/column-actions";
 import { CheckInDialog } from "@/components/check-in-dialog";
 import { GoalActionsMenu } from "@/components/goal-actions-menu";
 import { CreateColumnForm } from "@/components/create-column-form";
@@ -76,9 +84,11 @@ export function GoalBoard({
   highlightGoalId?: string;
 }) {
   const [items, setItems] = useState(goals);
+  const [columnItems, setColumnItems] = useState(columns);
   const [activeGoal, setActiveGoal] = useState<BoardGoal | null>(null);
+  const [activeColumn, setActiveColumn] = useState<BoardColumnData | null>(null);
 
-  // Resync local (optimistic) state whenever the server sends fresh goals —
+  // Resync local (optimistic) state whenever the server sends fresh data —
   // adjusting state during render, per React's guidance, instead of an
   // effect (avoids an extra commit + the set-state-in-effect lint rule).
   const [prevGoals, setPrevGoals] = useState(goals);
@@ -86,11 +96,16 @@ export function GoalBoard({
     setPrevGoals(goals);
     setItems(goals);
   }
+  const [prevColumns, setPrevColumns] = useState(columns);
+  if (columns !== prevColumns) {
+    setPrevColumns(columns);
+    setColumnItems(columns);
+  }
 
-  const selectableColumns = columns
-    .filter((c) => !c.isMilestone)
-    .map((c) => ({ id: c.id, name: c.name }));
-  const defaultColumnId = columns.find((c) => c.isDefault)?.id ?? selectableColumns[0]?.id ?? "";
+  const pinnedColumns = columnItems.filter((c) => c.isDefault || c.isMilestone);
+  const customColumns = columnItems.filter((c) => !c.isDefault && !c.isMilestone);
+  const selectableColumns = columnItems.filter((c) => !c.isMilestone).map((c) => ({ id: c.id, name: c.name }));
+  const defaultColumnId = columnItems.find((c) => c.isDefault)?.id ?? selectableColumns[0]?.id ?? "";
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -98,29 +113,66 @@ export function GoalBoard({
   );
 
   function handleDragStart(event: DragStartEvent) {
-    const goal = items.find((g) => g.id === event.active.id);
-    setActiveGoal(goal ?? null);
+    if (event.active.data.current?.type === "column") {
+      setActiveColumn(columnItems.find((c) => c.id === event.active.id) ?? null);
+    } else {
+      setActiveGoal(items.find((g) => g.id === event.active.id) ?? null);
+    }
   }
 
   function handleDragEnd(event: DragEndEvent) {
-    setActiveGoal(null);
     const { active, over } = event;
+    const isColumnDrag = active.data.current?.type === "column";
+    setActiveGoal(null);
+    setActiveColumn(null);
     if (!over) return;
 
-    const goalId = String(active.id);
-    const newColumnId = String(over.id);
-    const goal = items.find((g) => g.id === goalId);
-    if (!goal || goal.columnId === newColumnId) return;
+    if (isColumnDrag) {
+      const oldIndex = customColumns.findIndex((c) => c.id === active.id);
+      const newIndex = customColumns.findIndex((c) => c.id === over.id);
+      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
 
-    const targetColumn = columns.find((c) => c.id === newColumnId);
+      const previousColumns = columnItems;
+      const reorderedCustom = arrayMove(customColumns, oldIndex, newIndex);
+      setColumnItems([...pinnedColumns, ...reorderedCustom]);
+
+      reorderColumns(reorderedCustom.map((c) => c.id)).catch(() => setColumnItems(previousColumns));
+      return;
+    }
+
+    const goalId = String(active.id);
+    const goal = items.find((g) => g.id === goalId);
+    if (!goal) return;
+
+    const overId = String(over.id);
+    const overIsColumn = columnItems.some((c) => c.id === overId);
+    const targetColumnId = overIsColumn ? overId : items.find((g) => g.id === overId)?.columnId;
+    if (!targetColumnId) return;
+
+    const targetColumn = columnItems.find((c) => c.id === targetColumnId);
     if (!targetColumn || targetColumn.isMilestone !== (goal.type === "MILESTONE")) return;
 
-    const previousColumnId = goal.columnId;
-    setItems((prev) => prev.map((g) => (g.id === goalId ? { ...g, columnId: newColumnId } : g)));
+    if (goal.columnId === targetColumnId && overId === goalId) return;
 
-    moveGoalToColumn(goalId, newColumnId).catch(() => {
-      setItems((prev) => prev.map((g) => (g.id === goalId ? { ...g, columnId: previousColumnId } : g)));
-    });
+    const previousItems = items;
+    const withoutGoal = items.filter((g) => g.id !== goalId);
+    let insertAt: number;
+    if (overIsColumn) {
+      let lastIdx = -1;
+      withoutGoal.forEach((g, i) => {
+        if (g.columnId === targetColumnId) lastIdx = i;
+      });
+      insertAt = lastIdx + 1;
+    } else {
+      insertAt = withoutGoal.findIndex((g) => g.id === overId);
+      if (insertAt === -1) insertAt = withoutGoal.length;
+    }
+    const movedGoal = { ...goal, columnId: targetColumnId };
+    const newItems = [...withoutGoal.slice(0, insertAt), movedGoal, ...withoutGoal.slice(insertAt)];
+    setItems(newItems);
+
+    const orderedIdsForColumn = newItems.filter((g) => g.columnId === targetColumnId).map((g) => g.id);
+    reorderGoals(targetColumnId, orderedIdsForColumn).catch(() => setItems(previousItems));
   }
 
   return (
@@ -133,8 +185,8 @@ export function GoalBoard({
     >
       <ScrollArea className="w-full" type="always">
         <div className="flex snap-x snap-mandatory gap-4 pb-4 sm:snap-none">
-          {columns.map((column) => (
-            <BoardColumnView
+          {pinnedColumns.map((column) => (
+            <PinnedColumnView
               key={column.id}
               column={column}
               goals={items.filter((g) => g.columnId === column.id)}
@@ -143,6 +195,16 @@ export function GoalBoard({
               defaultColumnId={defaultColumnId}
             />
           ))}
+          <SortableContext items={customColumns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
+            {customColumns.map((column) => (
+              <SortableColumnView
+                key={column.id}
+                column={column}
+                goals={items.filter((g) => g.columnId === column.id)}
+                highlightGoalId={highlightGoalId}
+              />
+            ))}
+          </SortableContext>
           <div className="w-72 shrink-0 pt-1 sm:w-80">
             <CreateColumnForm />
           </div>
@@ -150,12 +212,70 @@ export function GoalBoard({
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      <DragOverlay>{activeGoal ? <GoalCardContent goal={activeGoal} dragging /> : null}</DragOverlay>
+      <DragOverlay>
+        {activeGoal ? (
+          <GoalCardContent goal={activeGoal} dragging />
+        ) : activeColumn ? (
+          <ColumnDragPreview column={activeColumn} />
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }
 
-function BoardColumnView({
+function ColumnHeader({
+  column,
+  goalCount,
+  dragHandleProps,
+  children,
+}: {
+  column: BoardColumnData;
+  goalCount: number;
+  dragHandleProps?: Record<string, unknown>;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 px-1">
+      <div className="flex min-w-0 items-center gap-1.5">
+        {dragHandleProps && (
+          <button
+            type="button"
+            {...dragHandleProps}
+            className="shrink-0 touch-none text-muted-foreground/40 hover:text-muted-foreground"
+            aria-label={`Drag to reorder ${column.name} column`}
+          >
+            <GripVertical className="size-4" />
+          </button>
+        )}
+        <h3 className="truncate text-sm font-semibold">{column.name}</h3>
+        <Badge variant="secondary" className="shrink-0">
+          {goalCount}
+        </Badge>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function GoalList({ goals, highlightGoalId }: { goals: BoardGoal[]; highlightGoalId?: string }) {
+  return (
+    <div className="flex min-h-20 flex-col gap-2">
+      {goals.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border px-3 py-8 text-center text-xs text-muted-foreground">
+          No goals here
+        </p>
+      ) : (
+        <SortableContext items={goals.map((g) => g.id)} strategy={verticalListSortingStrategy}>
+          {goals.map((goal) => (
+            <SortableGoalCard key={goal.id} goal={goal} highlighted={goal.id === highlightGoalId} />
+          ))}
+        </SortableContext>
+      )}
+    </div>
+  );
+}
+
+function PinnedColumnView({
   column,
   goals,
   highlightGoalId,
@@ -178,13 +298,7 @@ function BoardColumnView({
         isOver && "border-primary/50 bg-primary/5",
       )}
     >
-      <div className="flex items-center justify-between gap-2 px-1">
-        <div className="flex min-w-0 items-center gap-2">
-          <h3 className="truncate text-sm font-semibold">{column.name}</h3>
-          <Badge variant="secondary" className="shrink-0">
-            {goals.length}
-          </Badge>
-        </div>
+      <ColumnHeader column={column} goalCount={goals.length}>
         {column.isDefault ? (
           <CreateGoalForm
             columns={selectableColumns}
@@ -195,7 +309,7 @@ function BoardColumnView({
               </Button>
             }
           />
-        ) : column.isMilestone ? (
+        ) : (
           <CreateGoalForm
             columns={selectableColumns}
             defaultColumnId={defaultColumnId}
@@ -206,29 +320,65 @@ function BoardColumnView({
               </Button>
             }
           />
-        ) : (
-          <DeleteColumnButton columnId={column.id} columnName={column.name} />
         )}
-      </div>
+      </ColumnHeader>
 
-      <div className="flex min-h-20 flex-col gap-2">
-        {goals.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border px-3 py-8 text-center text-xs text-muted-foreground">
-            No goals here
-          </p>
-        ) : (
-          goals.map((goal) => (
-            <DraggableGoalCard key={goal.id} goal={goal} highlighted={goal.id === highlightGoalId} />
-          ))
-        )}
-      </div>
+      <GoalList goals={goals} highlightGoalId={highlightGoalId} />
     </div>
   );
 }
 
-function DraggableGoalCard({ goal, highlighted }: { goal: BoardGoal; highlighted?: boolean }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: goal.id });
-  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
+function SortableColumnView({
+  column,
+  goals,
+  highlightGoalId,
+}: {
+  column: BoardColumnData;
+  goals: BoardGoal[];
+  highlightGoalId?: string;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: column.id,
+    data: { type: "column" },
+  });
+  const { over } = useDndContext();
+  const isOver = over?.id === column.id;
+  const style = { transform: CSS.Transform.toString(transform), transition };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex min-h-[28rem] w-72 shrink-0 snap-start flex-col gap-3 rounded-xl border border-border bg-muted/30 p-3 transition-colors sm:w-80",
+        isOver && "border-primary/50 bg-primary/5",
+        isDragging && "opacity-40",
+      )}
+    >
+      <ColumnHeader column={column} goalCount={goals.length} dragHandleProps={{ ...attributes, ...listeners }}>
+        <DeleteColumnButton columnId={column.id} columnName={column.name} />
+      </ColumnHeader>
+
+      <GoalList goals={goals} highlightGoalId={highlightGoalId} />
+    </div>
+  );
+}
+
+function ColumnDragPreview({ column }: { column: BoardColumnData }) {
+  return (
+    <div className="flex w-72 shrink-0 rotate-2 items-center gap-2 rounded-xl border border-border bg-muted/60 px-3 py-2 shadow-lg sm:w-80">
+      <GripVertical className="size-4 text-muted-foreground" />
+      <h3 className="truncate text-sm font-semibold">{column.name}</h3>
+    </div>
+  );
+}
+
+function SortableGoalCard({ goal, highlighted }: { goal: BoardGoal; highlighted?: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: goal.id,
+    data: { type: "goal", columnId: goal.columnId },
+  });
+  const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
     <div ref={setNodeRef} style={style} className={cn(isDragging && "opacity-40")}>

@@ -61,3 +61,21 @@ export async function deleteColumn(columnId: string) {
 
   revalidatePath("/dashboard");
 }
+
+export async function reorderColumns(orderedColumnIds: string[]) {
+  const userId = await requireUserId();
+
+  const columns = await prisma.column.findMany({ where: { id: { in: orderedColumnIds } } });
+  if (columns.length !== orderedColumnIds.length || columns.some((c) => c.userId !== userId)) {
+    throw new Error("Column not found");
+  }
+  if (columns.some((c) => c.isDefault || c.isMilestone)) {
+    throw new Error("The Default and Milestones columns can't be reordered");
+  }
+
+  await prisma.$transaction(
+    orderedColumnIds.map((id, index) => prisma.column.update({ where: { id }, data: { order: index } })),
+  );
+
+  revalidatePath("/dashboard");
+}

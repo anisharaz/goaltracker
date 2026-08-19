@@ -113,26 +113,38 @@ export async function updateGoal(goalId: string, formData: FormData) {
   revalidatePath(`/dashboard/goals/${goalId}`);
 }
 
-export async function moveGoalToColumn(goalId: string, columnId: string) {
+/**
+ * Moves (if needed) and reorders goals within a column in one shot: `columnId`
+ * is the column they now belong to, and `orderedGoalIds` is their full new
+ * order within it (index becomes the `order` value).
+ */
+export async function reorderGoals(columnId: string, orderedGoalIds: string[]) {
   const userId = await requireUserId();
 
-  const [goal, column] = await Promise.all([
-    prisma.goal.findUnique({ where: { id: goalId } }),
-    prisma.column.findUnique({ where: { id: columnId } }),
-  ]);
-  if (!goal || goal.userId !== userId) throw new Error("Goal not found");
+  const column = await prisma.column.findUnique({ where: { id: columnId } });
   if (!column || column.userId !== userId) throw new Error("Column not found");
 
-  const goalIsMilestone = goal.type === GoalType.MILESTONE;
-  if (goalIsMilestone !== column.isMilestone) {
-    throw new Error(
-      goalIsMilestone
-        ? "Milestones can only live in the Milestones column"
-        : "Only milestones can go in the Milestones column",
-    );
+  const goals = await prisma.goal.findMany({ where: { id: { in: orderedGoalIds } } });
+  if (goals.length !== orderedGoalIds.length || goals.some((g) => g.userId !== userId)) {
+    throw new Error("Goal not found");
   }
 
-  await prisma.goal.update({ where: { id: goalId }, data: { columnId } });
+  for (const goal of goals) {
+    const goalIsMilestone = goal.type === GoalType.MILESTONE;
+    if (goalIsMilestone !== column.isMilestone) {
+      throw new Error(
+        goalIsMilestone
+          ? "Milestones can only live in the Milestones column"
+          : "Only milestones can go in the Milestones column",
+      );
+    }
+  }
+
+  await prisma.$transaction(
+    orderedGoalIds.map((goalId, index) =>
+      prisma.goal.update({ where: { id: goalId }, data: { columnId, order: index } }),
+    ),
+  );
 
   revalidatePath("/dashboard");
 }

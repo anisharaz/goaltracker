@@ -16,16 +16,17 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { Flame, GripVertical } from "lucide-react";
+import { Flame, GripVertical, Plus } from "lucide-react";
 
 import { moveGoalToColumn } from "@/app/dashboard/actions";
 import { CheckInDialog } from "@/components/check-in-dialog";
 import { DeleteGoalButton } from "@/components/delete-goal-button";
 import { CreateColumnForm } from "@/components/create-column-form";
-import { CreateMilestoneForm } from "@/components/create-milestone-form";
+import { CreateGoalForm } from "@/components/create-goal-form";
 import { DeleteColumnButton } from "@/components/delete-column-button";
 import { MilestoneCompleteButton } from "@/components/milestone-complete-button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -80,6 +81,11 @@ export function GoalBoard({
     setItems(goals);
   }
 
+  const selectableColumns = columns
+    .filter((c) => !c.isMilestone)
+    .map((c) => ({ id: c.id, name: c.name }));
+  const defaultColumnId = columns.find((c) => c.isDefault)?.id ?? selectableColumns[0]?.id ?? "";
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
@@ -127,6 +133,8 @@ export function GoalBoard({
               column={column}
               goals={items.filter((g) => g.columnId === column.id)}
               highlightGoalId={highlightGoalId}
+              selectableColumns={selectableColumns}
+              defaultColumnId={defaultColumnId}
             />
           ))}
           <div className="w-72 shrink-0 pt-1 sm:w-80">
@@ -145,10 +153,14 @@ function BoardColumnView({
   column,
   goals,
   highlightGoalId,
+  selectableColumns,
+  defaultColumnId,
 }: {
   column: BoardColumnData;
   goals: BoardGoal[];
   highlightGoalId?: string;
+  selectableColumns: { id: string; name: string }[];
+  defaultColumnId: string;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
@@ -167,10 +179,29 @@ function BoardColumnView({
             {goals.length}
           </Badge>
         </div>
-        {column.isMilestone ? (
-          <CreateMilestoneForm />
+        {column.isDefault ? (
+          <CreateGoalForm
+            columns={selectableColumns}
+            defaultColumnId={column.id}
+            trigger={
+              <Button variant="ghost" size="icon-sm" aria-label="Add goal" className="shrink-0">
+                <Plus />
+              </Button>
+            }
+          />
+        ) : column.isMilestone ? (
+          <CreateGoalForm
+            columns={selectableColumns}
+            defaultColumnId={defaultColumnId}
+            initialType="MILESTONE"
+            trigger={
+              <Button variant="ghost" size="icon-sm" aria-label="Add milestone" className="shrink-0">
+                <Plus />
+              </Button>
+            }
+          />
         ) : (
-          !column.isDefault && <DeleteColumnButton columnId={column.id} columnName={column.name} />
+          <DeleteColumnButton columnId={column.id} columnName={column.name} />
         )}
       </div>
 

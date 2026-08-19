@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Flag, Hash, Plus, Repeat, type LucideIcon } from "lucide-react";
 
 import { createGoal } from "@/app/dashboard/actions";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 
 const WEEKDAYS = [
   { value: 0, label: "Sun" },
@@ -38,17 +39,27 @@ const WEEKDAYS = [
   { value: 6, label: "Sat" },
 ];
 
-type GoalType = "HABIT" | "NUMERIC";
+type GoalType = "HABIT" | "NUMERIC" | "MILESTONE";
+
+const TYPE_OPTIONS: { value: GoalType; label: string; icon: LucideIcon }[] = [
+  { value: "HABIT", label: "Habit", icon: Repeat },
+  { value: "NUMERIC", label: "Numeric", icon: Hash },
+  { value: "MILESTONE", label: "Milestone", icon: Flag },
+];
 
 export function CreateGoalForm({
   columns,
   defaultColumnId,
+  initialType = "HABIT",
+  trigger,
 }: {
   columns: { id: string; name: string }[];
   defaultColumnId: string;
+  initialType?: GoalType;
+  trigger?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const [type, setType] = useState<GoalType>("HABIT");
+  const [type, setType] = useState<GoalType>(initialType);
   const [columnId, setColumnId] = useState(defaultColumnId);
   const [isSubmitting, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
@@ -68,7 +79,7 @@ export function CreateGoalForm({
         url.searchParams.set("highlight", goal.id);
         router.push(url.pathname + url.search, { scroll: false });
         formRef.current?.reset();
-        setType("HABIT");
+        setType(initialType);
         setColumnId(defaultColumnId);
         setOpen(false);
       });
@@ -78,10 +89,12 @@ export function CreateGoalForm({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus />
-          Add goal
-        </Button>
+        {trigger ?? (
+          <Button>
+            <Plus />
+            Add goal
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -98,33 +111,50 @@ export function CreateGoalForm({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="columnId">Column</Label>
-            <Select name="columnId" value={columnId} onValueChange={setColumnId}>
-              <SelectTrigger id="columnId" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {columns.map((column) => (
-                  <SelectItem key={column.id} value={column.id}>
-                    {column.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Type</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {TYPE_OPTIONS.map((option) => {
+                const Icon = option.icon;
+                const selected = type === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setType(option.value)}
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 px-2 py-4 text-xs font-medium transition-colors",
+                      selected
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="size-5" />
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+            <input type="hidden" name="type" value={type} />
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="type">Type</Label>
-            <Select name="type" value={type} onValueChange={(v) => setType(v as GoalType)}>
-              <SelectTrigger id="type" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="HABIT">Habit (done / not done)</SelectItem>
-                <SelectItem value="NUMERIC">Numeric (track a quantity)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {type !== "MILESTONE" && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="columnId">Column</Label>
+              <Select name="columnId" value={columnId} onValueChange={setColumnId}>
+                <SelectTrigger id="columnId" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {columns.map((column) => (
+                    <SelectItem key={column.id} value={column.id}>
+                      {column.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {type === "NUMERIC" && (
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -139,20 +169,29 @@ export function CreateGoalForm({
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
-            <Label>Active days</Label>
-            <div className="flex flex-wrap gap-3">
-              {WEEKDAYS.map((day) => (
-                <label
-                  key={day.value}
-                  className="flex items-center gap-1.5 text-sm text-muted-foreground"
-                >
-                  <Checkbox name={`weekday-${day.value}`} defaultChecked value="on" />
-                  {day.label}
-                </label>
-              ))}
+          {type === "MILESTONE" && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="targetDate">Target date</Label>
+              <Input id="targetDate" name="targetDate" type="date" />
             </div>
-          </div>
+          )}
+
+          {type !== "MILESTONE" && (
+            <div className="flex flex-col gap-2">
+              <Label>Active days</Label>
+              <div className="flex flex-wrap gap-3">
+                {WEEKDAYS.map((day) => (
+                  <label
+                    key={day.value}
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground"
+                  >
+                    <Checkbox name={`weekday-${day.value}`} defaultChecked value="on" />
+                    {day.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           <DialogFooter>
             <Button type="submit" disabled={isSubmitting}>

@@ -17,6 +17,7 @@ import { GoalActionsMenu } from "@/components/goal-actions-menu";
 import { MilestoneCompleteButton } from "@/components/milestone-complete-button";
 import { MilestoneChecklist } from "@/components/milestone-checklist";
 import { BackfillCheckInDialog } from "@/components/backfill-checkin-dialog";
+import { StreakHeatmap } from "@/components/streak-heatmap";
 import { BackgroundDecoration } from "@/components/background-decoration";
 import { Separator } from "@/components/ui/separator";
 import type { GoalModel } from "@/generated/prisma/models";
@@ -201,6 +202,14 @@ async function GoalStatsSection({ goal }: { goal: GoalModel }) {
 
       <div className="animate-in fade-in-0 fill-mode-both duration-500" style={{ animationDelay: "150ms" }}>
         <GoalCharts data={chartData} goalType={goal.type} targetUnit={goal.targetUnit} />
+      </div>
+
+      <div className="animate-in fade-in-0 fill-mode-both duration-500" style={{ animationDelay: "200ms" }}>
+        <StreakHeatmap
+          checkIns={checkIns}
+          activeWeekdays={goal.activeWeekdays}
+          recurrenceType={goal.recurrenceType}
+        />
       </div>
 
       <div className="animate-in fade-in-0 fill-mode-both duration-500" style={{ animationDelay: "250ms" }}>

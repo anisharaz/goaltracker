@@ -27,6 +27,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 const WEEKDAYS = [
@@ -108,6 +109,11 @@ export function CreateGoalForm({
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="title">Title</Label>
             <Input id="title" name="title" required placeholder="e.g. Daily exercise" />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="description">Description (optional)</Label>
+            <Textarea id="description" name="description" rows={2} placeholder="Any extra context…" />
           </div>
 
           <div className="flex flex-col gap-1.5">

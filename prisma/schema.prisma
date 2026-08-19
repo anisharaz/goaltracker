@@ -136,6 +136,9 @@ model Goal {
   endDate    DateTime?
   isArchived Boolean   @default(false)
 
+  // Position within its column, for drag-to-reorder.
+  order Int @default(0)
+
   // Cached stats, updated whenever a CheckIn is written
   currentStreak   Int       @default(0)
   longestStreak   Int       @default(0)

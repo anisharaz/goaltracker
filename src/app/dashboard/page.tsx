@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { Archive, Sparkles } from "lucide-react";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -14,6 +16,8 @@ import { GoalSearch } from "@/components/goal-search";
 import { ClearHighlightParam } from "@/components/clear-highlight-param";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BackgroundDecoration } from "@/components/background-decoration";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 export default async function DashboardPage({
@@ -37,6 +41,9 @@ export default async function DashboardPage({
     where: { userId: session.user.id },
     orderBy: [{ isDefault: "desc" }, { isMilestone: "desc" }, { order: "asc" }],
   });
+  const archivedCount = await prisma.goal.count({
+    where: { userId: session.user.id, isArchived: true },
+  });
 
   return (
     <div className="relative flex flex-1 flex-col items-center overflow-hidden bg-muted/40">
@@ -49,6 +56,13 @@ export default async function DashboardPage({
             <p className="text-sm text-muted-foreground">{session.user.email}</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/dashboard/archived">
+                <Archive />
+                Archived
+                {archivedCount > 0 && <Badge variant="secondary">{archivedCount}</Badge>}
+              </Link>
+            </Button>
             <ThemeToggle />
             <SignOutButton />
           </div>
@@ -95,9 +109,10 @@ async function GoalBoardData({
   const goals = await prisma.goal.findMany({
     where: {
       userId,
+      isArchived: false,
       ...(q ? { title: { contains: q, mode: "insensitive" } } : {}),
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ order: "asc" }, { createdAt: "desc" }],
   });
 
   const today = toDateOnly(new Date());
@@ -111,8 +126,13 @@ async function GoalBoardData({
     return {
       id: goal.id,
       title: goal.title,
+      description: goal.description,
       type: goal.type,
+      recurrenceType: goal.recurrenceType,
+      targetValue: goal.targetValue,
       targetUnit: goal.targetUnit,
+      targetDate: goal.targetDate,
+      activeWeekdays: goal.activeWeekdays,
       currentStreak: goal.currentStreak,
       columnId: goal.columnId ?? defaultColumnId,
       completedAt: goal.completedAt,
@@ -132,6 +152,27 @@ async function GoalBoardData({
       <p className="rounded-xl border border-dashed border-border px-6 py-12 text-center text-sm text-muted-foreground">
         No goals match &quot;{q}&quot;.
       </p>
+    );
+  }
+
+  if (goals.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-border px-6 py-16 text-center">
+        <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <Sparkles className="size-6" />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <h3 className="text-base font-semibold">Create your first goal</h3>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            Track a daily habit, a quantity you want to hit, or a one-off milestone — pick whichever
+            fits and add it below.
+          </p>
+        </div>
+        <CreateGoalForm
+          columns={columns.filter((c) => !c.isMilestone).map((c) => ({ id: c.id, name: c.name }))}
+          defaultColumnId={defaultColumnId}
+        />
+      </div>
     );
   }
 

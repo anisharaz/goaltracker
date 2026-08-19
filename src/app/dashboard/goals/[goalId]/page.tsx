@@ -6,14 +6,17 @@ import { ArrowLeft, Flame, Percent, Star, Trophy, type LucideIcon } from "lucide
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { lastNDates } from "@/lib/dates";
+import { lastNDates, getMilestoneUrgency } from "@/lib/dates";
 import { computeCompletionRate, averageRating } from "@/lib/goal-stats";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GoalCharts } from "@/components/goal-charts";
 import { GoalStatsSkeleton } from "@/components/goal-stats-skeleton";
-import { DeleteGoalButton } from "@/components/delete-goal-button";
+import { GoalActionsMenu } from "@/components/goal-actions-menu";
 import { MilestoneCompleteButton } from "@/components/milestone-complete-button";
+import { MilestoneChecklist } from "@/components/milestone-checklist";
+import { BackfillCheckInDialog } from "@/components/backfill-checkin-dialog";
 import { BackgroundDecoration } from "@/components/background-decoration";
 import { Separator } from "@/components/ui/separator";
 import type { GoalModel } from "@/generated/prisma/models";
@@ -33,8 +36,13 @@ export default async function GoalDetailPage({
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) redirect("/sign-in");
 
-  const goal = await prisma.goal.findUnique({ where: { id: goalId } });
+  const goal = await prisma.goal.findUnique({
+    where: { id: goalId },
+    include: { tasks: { orderBy: { order: "asc" } } },
+  });
   if (!goal || goal.userId !== session.user.id) notFound();
+
+  const milestoneUrgency = getMilestoneUrgency(goal.targetDate, goal.completedAt);
 
   return (
     <div className="relative flex flex-1 flex-col items-center overflow-hidden bg-muted/40">
@@ -49,7 +57,20 @@ export default async function GoalDetailPage({
               <ArrowLeft className="size-4" />
               Back to dashboard
             </Link>
-            <DeleteGoalButton goalId={goal.id} goalTitle={goal.title} redirectTo="/dashboard" />
+            <GoalActionsMenu
+              goal={{
+                id: goal.id,
+                title: goal.title,
+                description: goal.description,
+                type: goal.type,
+                recurrenceType: goal.recurrenceType,
+                targetValue: goal.targetValue,
+                targetUnit: goal.targetUnit,
+                targetDate: goal.targetDate,
+                activeWeekdays: goal.activeWeekdays,
+              }}
+              redirectTo="/dashboard"
+            />
           </div>
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -69,7 +90,22 @@ export default async function GoalDetailPage({
         {goal.type === "MILESTONE" ? (
           <Card>
             <CardHeader>
-              <CardTitle>Target date</CardTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                <CardTitle>Target date</CardTitle>
+                {milestoneUrgency && (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "px-1.5 py-0 text-[10px]",
+                      milestoneUrgency === "overdue"
+                        ? "border-destructive/40 text-destructive"
+                        : "border-amber-500/40 text-amber-600 dark:text-amber-400",
+                    )}
+                  >
+                    {milestoneUrgency === "overdue" ? "Overdue" : "Due soon"}
+                  </Badge>
+                )}
+              </div>
               <CardDescription>
                 {goal.targetDate
                   ? new Date(goal.targetDate).toLocaleDateString(undefined, {
@@ -95,9 +131,29 @@ export default async function GoalDetailPage({
             </CardContent>
           </Card>
         ) : (
-          <Suspense fallback={<GoalStatsSkeleton />}>
-            <GoalStatsSection goal={goal} />
-          </Suspense>
+          <div className="flex flex-col gap-6">
+            <div className="flex justify-end">
+              <BackfillCheckInDialog goalId={goal.id} goalType={goal.type} targetUnit={goal.targetUnit} />
+            </div>
+            <Suspense fallback={<GoalStatsSkeleton />}>
+              <GoalStatsSection goal={goal} />
+            </Suspense>
+          </div>
+        )}
+
+        {goal.type === "MILESTONE" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Checklist</CardTitle>
+              <CardDescription>Break this milestone into smaller steps.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <MilestoneChecklist
+                goalId={goal.id}
+                tasks={goal.tasks.map((t) => ({ id: t.id, title: t.title, isDone: t.isDone }))}
+              />
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

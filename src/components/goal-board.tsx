@@ -20,7 +20,7 @@ import { Flame, GripVertical, Plus } from "lucide-react";
 
 import { moveGoalToColumn } from "@/app/dashboard/actions";
 import { CheckInDialog } from "@/components/check-in-dialog";
-import { DeleteGoalButton } from "@/components/delete-goal-button";
+import { GoalActionsMenu } from "@/components/goal-actions-menu";
 import { CreateColumnForm } from "@/components/create-column-form";
 import { CreateGoalForm } from "@/components/create-goal-form";
 import { DeleteColumnButton } from "@/components/delete-column-button";
@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { getMilestoneUrgency } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
 const TYPE_LABEL: Record<string, string> = {
@@ -40,8 +41,13 @@ const TYPE_LABEL: Record<string, string> = {
 export type BoardGoal = {
   id: string;
   title: string;
+  description: string | null;
   type: "HABIT" | "NUMERIC" | "MILESTONE";
+  recurrenceType: "RECURRING" | "MONTHLY" | "NONE";
+  targetValue: number | null;
   targetUnit: string | null;
+  targetDate: Date | null;
+  activeWeekdays: number[];
   currentStreak: number;
   columnId: string | null;
   completedAt: Date | null;
@@ -242,6 +248,8 @@ function GoalCardContent({
   dragging?: boolean;
   highlighted?: boolean;
 }) {
+  const urgency = goal.type === "MILESTONE" ? getMilestoneUrgency(goal.targetDate, goal.completedAt) : null;
+
   return (
     <Card
       className={cn(
@@ -251,6 +259,8 @@ function GoalCardContent({
         goal.type === "MILESTONE" &&
           goal.completedAt &&
           "ring-1 ring-[color:var(--chart-3)]/30 bg-[color:var(--chart-3)]/[0.05]",
+        urgency === "overdue" && "ring-1 ring-destructive/30 bg-destructive/[0.03]",
+        urgency === "due-soon" && "ring-1 ring-amber-500/30 bg-amber-500/[0.03]",
         highlighted && "animate-highlight-glow",
       )}
     >
@@ -268,11 +278,24 @@ function GoalCardContent({
             href={`/dashboard/goals/${goal.id}`}
             className="group flex min-w-0 flex-1 flex-col gap-1"
           >
-            <div className="flex min-w-0 items-center gap-1.5">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <p className="truncate text-sm font-medium group-hover:underline">{goal.title}</p>
               <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[10px]">
                 {TYPE_LABEL[goal.type]}
               </Badge>
+              {urgency && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "shrink-0 px-1.5 py-0 text-[10px]",
+                    urgency === "overdue"
+                      ? "border-destructive/40 text-destructive"
+                      : "border-amber-500/40 text-amber-600 dark:text-amber-400",
+                  )}
+                >
+                  {urgency === "overdue" ? "Overdue" : "Due soon"}
+                </Badge>
+              )}
             </div>
             {goal.currentStreak > 0 && (
               <p className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -297,7 +320,19 @@ function GoalCardContent({
           ) : (
             <MilestoneCompleteButton goalId={goal.id} completed={goal.completedAt != null} />
           )}
-          <DeleteGoalButton goalId={goal.id} goalTitle={goal.title} />
+          <GoalActionsMenu
+            goal={{
+              id: goal.id,
+              title: goal.title,
+              description: goal.description,
+              type: goal.type,
+              recurrenceType: goal.recurrenceType,
+              targetValue: goal.targetValue,
+              targetUnit: goal.targetUnit,
+              targetDate: goal.targetDate,
+              activeWeekdays: goal.activeWeekdays,
+            }}
+          />
         </div>
       </CardContent>
     </Card>

@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { prisma } from "@/lib/prisma";
 import { GoalType } from "@/generated/prisma/enums";
 
@@ -87,3 +89,20 @@ export async function ensureMilestonesColumn(userId: string) {
 
   return milestonesColumn;
 }
+
+/**
+ * The board's columns, self-healed and ready to render. Wrapped in React's
+ * `cache()` so multiple independent Suspense boundaries on the dashboard
+ * (the header's "Add goal" button, the board itself) can each await this
+ * without triggering duplicate ensure/create/query work per request.
+ */
+export const getBoardColumns = cache(async (userId: string) => {
+  const [defaultColumn] = await Promise.all([ensureDefaultColumn(userId), ensureMilestonesColumn(userId)]);
+
+  const columns = await prisma.column.findMany({
+    where: { userId },
+    orderBy: [{ isDefault: "desc" }, { isMilestone: "desc" }, { order: "asc" }],
+  });
+
+  return { columns, defaultColumnId: defaultColumn.id };
+});

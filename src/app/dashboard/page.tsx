@@ -7,7 +7,7 @@ import { Archive, Sparkles } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { toDateOnly } from "@/lib/dates";
-import { ensureDefaultColumn, ensureMilestonesColumn } from "@/lib/columns";
+import { getBoardColumns } from "@/lib/columns";
 import { SignOutButton } from "@/components/sign-out-button";
 import { CreateGoalForm } from "@/components/create-goal-form";
 import { GoalBoard, type BoardGoal } from "@/components/goal-board";
@@ -19,6 +19,7 @@ import { BackgroundDecoration } from "@/components/background-decoration";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default async function DashboardPage({
   searchParams,
@@ -32,19 +33,9 @@ export default async function DashboardPage({
     redirect("/sign-in");
   }
 
-  // Columns are a small, cheap query — fetch eagerly so the header, search
-  // box, and "Add goal" column picker render without waiting on the
-  // (potentially heavier) goals + check-ins query below.
-  const defaultColumn = await ensureDefaultColumn(session.user.id);
-  await ensureMilestonesColumn(session.user.id);
-  const columns = await prisma.column.findMany({
-    where: { userId: session.user.id },
-    orderBy: [{ isDefault: "desc" }, { isMilestone: "desc" }, { order: "asc" }],
-  });
-  const archivedCount = await prisma.goal.count({
-    where: { userId: session.user.id, isArchived: true },
-  });
-
+  // Only the session check gates the header — everything data-dependent
+  // (archived count, column list, the board itself) streams in behind its
+  // own Suspense boundary so the app shell paints as soon as possible.
   return (
     <div className="relative flex flex-1 flex-col items-center overflow-hidden bg-muted/40">
       <BackgroundDecoration />
@@ -56,13 +47,9 @@ export default async function DashboardPage({
             <p className="text-sm text-muted-foreground">{session.user.email}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/dashboard/archived">
-                <Archive />
-                Archived
-                {archivedCount > 0 && <Badge variant="secondary">{archivedCount}</Badge>}
-              </Link>
-            </Button>
+            <Suspense fallback={<Skeleton className="h-8 w-24 rounded-lg" />}>
+              <ArchivedLink userId={session.user.id} />
+            </Suspense>
             <ThemeToggle />
             <SignOutButton />
           </div>
@@ -77,15 +64,14 @@ export default async function DashboardPage({
               <Suspense>
                 <GoalSearch />
               </Suspense>
-              <CreateGoalForm
-                columns={columns.filter((c) => !c.isMilestone).map((c) => ({ id: c.id, name: c.name }))}
-                defaultColumnId={defaultColumn.id}
-              />
+              <Suspense fallback={<Skeleton className="h-8 w-28 rounded-lg" />}>
+                <AddGoalButton userId={session.user.id} />
+              </Suspense>
             </div>
           </div>
 
-          <Suspense fallback={<BoardSkeleton columns={columns} />}>
-            <GoalBoardData userId={session.user.id} defaultColumnId={defaultColumn.id} columns={columns} q={q} highlight={highlight} />
+          <Suspense fallback={<BoardSkeleton />}>
+            <GoalBoardData userId={session.user.id} q={q} highlight={highlight} />
           </Suspense>
         </section>
       </div>
@@ -93,19 +79,44 @@ export default async function DashboardPage({
   );
 }
 
+async function ArchivedLink({ userId }: { userId: string }) {
+  const archivedCount = await prisma.goal.count({
+    where: { userId, isArchived: true },
+  });
+
+  return (
+    <Button variant="outline" size="sm" asChild>
+      <Link href="/dashboard/archived">
+        <Archive />
+        Archived
+        {archivedCount > 0 && <Badge variant="secondary">{archivedCount}</Badge>}
+      </Link>
+    </Button>
+  );
+}
+
+async function AddGoalButton({ userId }: { userId: string }) {
+  const { columns, defaultColumnId } = await getBoardColumns(userId);
+
+  return (
+    <CreateGoalForm
+      columns={columns.filter((c) => !c.isMilestone).map((c) => ({ id: c.id, name: c.name }))}
+      defaultColumnId={defaultColumnId}
+    />
+  );
+}
+
 async function GoalBoardData({
   userId,
-  defaultColumnId,
-  columns,
   q,
   highlight,
 }: {
   userId: string;
-  defaultColumnId: string;
-  columns: { id: string; name: string; isDefault: boolean; isMilestone: boolean }[];
   q?: string;
   highlight?: string;
 }) {
+  const { columns, defaultColumnId } = await getBoardColumns(userId);
+
   const goals = await prisma.goal.findMany({
     where: {
       userId,
